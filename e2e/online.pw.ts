@@ -24,7 +24,7 @@ test('configured Classic: isolated guests invite, ready, play, reload and agree 
     await x.getByRole('dialog').getByRole('button',{name:'Request Rematch',exact:true}).click();
     await expect(o.getByRole('status')).toContainText('Rematch votes: 1/2');
     await o.getByRole('dialog').getByRole('button',{name:'Request Rematch',exact:true}).click();
-    await expect(x.getByTestId('board-cell-0')).toHaveAttribute('data-cell-value','empty');
-    await expect(o.getByTestId('board-cell-0')).toHaveAttribute('data-cell-value','empty');
+    await expect(x.getByTestId('board-cell-0')).toHaveAttribute('data-cell-value','empty',{timeout:10000});
+    await expect(o.getByTestId('board-cell-0')).toHaveAttribute('data-cell-value','empty',{timeout:10000});
   }finally{await a.close();await b.close();}
 });

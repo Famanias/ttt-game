@@ -16,12 +16,13 @@ function fixture():OnlineRoom{return {
   members:[{userId:uid,slot:'X',ready:true,status:'active',lastSeenAt:new Date().toISOString(),profile:{name:'Alpha',avatarId:'orb-bot'}},{userId:'22222222-2222-4222-8222-222222222222',slot:'O',ready:true,status:'active',lastSeenAt:new Date().toISOString(),profile:{name:'Beta',avatarId:'pixel-blob'}}],
   match:{id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',version:2,phase:'classic_turn',board:Array(9).fill(null),turn:'X',winner:null,winningLine:null,moveCount:0,streaks:{X:0,O:0},bestStreaks:{X:0,O:0},pendingClaims:0,claimant:null,round:null,startAt:new Date().toISOString(),deadlineAt:null,reconnectDeadline:null,reason:null,rematchVotes:[]}
 };}
-let canonical=fixture();let hangingLeave=false;let resumeRace=false;
+let canonical=fixture();let hangingLeave=false;let resumeRace=false;let commands:string[]=[];
 const channel={on(){return this;},subscribe(callback:(status:string)=>void){queueMicrotask(()=>callback('SUBSCRIBED'));return this;},track:async()=>{},presenceState:()=>({[uid]:[]})};
 mock.module('../lib/supabase/browser',()=>({browserSupabase:()=>({auth:{getSession:async()=>({data:{session:{access_token:'test-only'}}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})},realtime:{setAuth:async()=>{}},channel:()=>channel,removeChannel:async()=>{}})}));
 // Mock only the external network boundary. Render and interact with the real
 // room view, hook, arena, outcome, and local-return state transition.
 mock.module('../lib/services/online-game',()=>({ensureGuest:async()=>uid,gameFetch:async()=>({entries:[]}),onlineGame:{snapshot:async()=>({room:canonical}),command:async(_room:OnlineRoom,action:string)=>{
+  commands.push(action);
   if(action==='leave'){if(hangingLeave)return new Promise(()=>{});return Promise.reject(new Error('offline'));}
   if(action==='resume'){
     if(resumeRace){canonical={...canonical,version:canonical.version+1,match:{...canonical.match!,phase:'claim',claimant:'O',pendingClaims:1,version:canonical.match!.version+1}};throw new Error('ROUND_CLOSED');}
@@ -68,4 +69,15 @@ test('a submission resolving during reload reconciles and still establishes live
   function Observe(){const {room,connected}=useOnlineRoom(initial);return <output>{room.match!.phase}:{connected?'live':'poll'}</output>;}
   try{await act(async()=>{root.render(<Observe/>);await new Promise(resolve=>setTimeout(resolve,40));});assert.equal(container.textContent,'claim:live');}
   finally{resumeRace=false;await act(async()=>root.unmount());container.remove();}
+});
+
+test('room boot sends an immediate heartbeat without waiting for the 5s interval',async()=>{
+  canonical=fixture();commands=[];
+  const container=document.createElement('div');document.body.append(container);const root=createRoot(container);
+  const initial=canonical;
+  function Observe(){useOnlineRoom(initial);return <output>ok</output>;}
+  try{
+    await act(async()=>{root.render(<Observe/>);await new Promise(resolve=>setTimeout(resolve,40));});
+    assert.ok(commands.includes('heartbeat'),`expected boot heartbeat, got ${JSON.stringify(commands)}`);
+  }finally{await act(async()=>root.unmount());container.remove();}
 });

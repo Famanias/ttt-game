@@ -1,4 +1,19 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { test, expect } from '@playwright/test';
+
+// Next.js loads .env.local in the built server even when Playwright's shell env omits it.
+function isOnlineConfigured(): boolean {
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.RUN_HOSTED_E2E === '1') return true;
+  try {
+    const raw = readFileSync(resolve(process.cwd(), '.env.local'), 'utf8');
+    const hasUrl = /^\s*NEXT_PUBLIC_SUPABASE_URL\s*=\s*(?!["']?\s*$)["']?[^\s#]+/m.test(raw);
+    const hasKey = /^\s*NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY\s*=\s*(?!["']?\s*$)["']?[^\s#]+/m.test(raw);
+    return hasUrl && hasKey;
+  } catch {
+    return false;
+  }
+}
 
 test('offline local Classic alternates, locks terminal board and resets',async({page},info)=>{
   await page.route('**/api/**',route=>route.abort());
@@ -20,7 +35,7 @@ test('offline local Classic alternates, locks terminal board and resets',async({
 });
 
 test('unconfigured online and leaderboard show honest errors without blocking local games',async({page})=>{
-  test.skip(!!process.env.NEXT_PUBLIC_SUPABASE_URL,'This case requires the unconfigured setup.');
+  test.skip(isOnlineConfigured(),'This case requires the unconfigured setup.');
   await page.goto('/');
   await page.getByRole('button',{name:'Classic Room',exact:true}).click();
   await expect(page.getByText('Online play is not configured. Local games are available.')).toBeVisible();
