@@ -5,6 +5,7 @@ import { motion } from 'motion/react';
 import { Crosshair, RotateCcw, Sparkles, Zap } from 'lucide-react';
 import { MINIGAME_META, TURN_TAKE_ASSETS } from '@/lib/game/assets';
 import { soundEngine } from '@/lib/game/audio';
+import { captureTargetEvent } from '@/lib/online/input';
 import {
   generateFlashPattern,
   scoreFlashMemory,
@@ -372,7 +373,9 @@ function TargetRushStage({
       const rect=event.currentTarget.parentElement!.getBoundingClientRect();
       const x=event.detail===0?target.x:(event.clientX-rect.left)/rect.width*100;
       const y=event.detail===0?target.y:(event.clientY-rect.top)/rect.height*100;
-      rushEvents.current.push({t,targetId:target.id,x,y});hitIds.current.add(target.id);
+      const captured=captureTargetEvent(online.round.config,target.id,t,{x,y},hitIds.current,rushEvents.current.at(-1)?.t??-1000);
+      if(!captured)return;
+      rushEvents.current.push(captured);hitIds.current.add(target.id);
     }
     soundEngine.playTargetHit(target.isBonus);
     rushScoreRef.current += target.points;

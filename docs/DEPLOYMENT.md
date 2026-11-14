@@ -54,7 +54,7 @@ $env:RUN_HOSTED_E2E = '1'
 bun run test:e2e
 ```
 
-The hosted script creates three real anonymous guests and Smoke-prefixed opted-in profiles, exercises two-seat admission and nonmember/channel denial, races Classic moves, rematches, and plays all three Clash challenge types with raw test traces and bonus claims. These are real database writes. The browser case uses distinct cookie jars for invite/readiness/Classic/reload/rematch. Neither was run without credentials. Remove test guests/results using your project's authorized admin workflow afterward; the client has no deletion backdoor.
+The hosted script creates three real anonymous guests and Smoke-prefixed opted-in profiles, exercises two-seat admission and nonmember/channel denial, races Classic moves, rematches, verifies a fast reload restart, and concurrently submits both guests across all three Clash challenge types with raw test traces and bonus claims. These are real database writes. The browser case uses distinct cookie jars for invite/readiness/Classic/reload/rematch. Neither was run without credentials. Remove test guests/results using your project's authorized admin workflow afterward; the client has no deletion backdoor.
 
 Manually verify with two devices: copy invite, join/third-user rejection, ready/unready during countdown, Classic win/draw/rematch, all three online minigame renderers, hidden submissions, tied sudden death, normal/bonus/auto claims, reload in every phase, duplicate tabs, network drop within grace vs timeout, deliberate leave, and public rankings opt-in/out. Check mobile touch and a throttled connection. Observe Cron finalization after closing both browsers. This checklist is pending, not claimed evidence.
 

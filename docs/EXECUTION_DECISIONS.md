@@ -1,0 +1,25 @@
+﻿# Execution decisions
+
+Recorded in execution order. The initial submission-deadline ruling is historical and superseded by the following thirty-second-grace ruling. Final behavior is described in REALTIME_PROTOCOL.md.
+
+- Ruling: translate M0–M5 master prompt into numbered executable briefs — supplied prompt has milestones rather than Task headings — cost if wrong: brief/spec drift, audited against copied spec at final review.
+- Ruling: use existing root app/lib layout and node:test through Bun — preserve actual project and test runner — cost if wrong: no Vitest-specific tooling.
+- Ruling: create isolated Orca worktree as authorized by executing-plans invocation — preserve main and existing lockfile changes — cost if wrong: work remains on review branch until integrated.
+- Ruling: Docker unavailable; use PGlite to execute migration/RLS/RPC integration tests — actual PostgreSQL semantics without inventing remote success — cost if wrong: hosted Auth/Realtime and true multi-connection races still require remote smoke.
+- Ruling: use same-origin JSON requests plus cookie/JWT validation, with all authoritative mutations revalidated by SQL — protect HTTP and direct RPC paths without service role — cost if wrong: cross-origin integrations need explicit design later.
+- Ruling: countdown disconnect/unready cancels the unplayed match with no stats and returns both to readiness — avoids starting against an absent guest — cost if wrong: both must ready again.
+- Ruling: heartbeat lease is 10 seconds plus 30-second reconnect grace — presence is display-only and database owns forfeits — cost if wrong: heavily throttled background tabs can time out; production smoke still needed.
+- Ruling: online Timing uses three stops (one in shortened sudden death), local Timing remains one stop — explicit master prompt requirement while preserving local UI/rubric — cost if wrong: online rounds take longer than local rounds.
+- Ruling: Target Rush uses four scheduled targets per 550ms batch, same positions/90-or-140 points/5500ms duration for both guests — replace local random on-hit respawns only online — cost if wrong: online pacing differs slightly from local.
+- Ruling: reconnect during a minigame cancels that attempt and restarts the identical stored challenge with a new round ID and shared countdown — stale partial traces cannot score or inherit shifted clocks — cost if wrong: players replay that challenge; streak and board preserved.
+- Ruling: missing submissions forfeit at the authoritative submission deadline; neither submitted abandons without match stats — no fabricated scores — cost if wrong: very late requests lose the round/match; grace/poll and deployment smoke must be validated.
+- Ruling: add 30 seconds after the submission window before missing-attempt forfeit/abandonment — short rounds must not turn a temporary drop into an immediate loss — cost if wrong: inactive rounds wait longer.
+- Ruling: self-host the same three licensed font families and use normal Next output — fixes the observed Google-font build failure and supports Vercel/standard start — cost if wrong: bundled fonts increase repository size; font metadata may differ slightly.
+- Ruling: pin compatible PostCSS 8.5.33 through Bun override — eliminates observed production advisories without a Next major upgrade — cost if wrong: CSS pipeline compatibility; production build and local minigame browser checks passed.
+- Final: Ruling: hosted Auth/Realtime/cache/Cron and real connection scheduling set aside by reviewer — remain explicitly unverified until configured remote smoke, with no production claim — cost if wrong: hosted-only defects can remain.
+- Final: Ruling: Vercel/public-device verification set aside by reviewer — no credentials/publish authorization, preserve tested review branch and supply deployment instructions — cost if wrong: app is not publicly demonstrated yet.
+- Final: Ruling: plausible forged browser traces set aside by reviewer — retain casual-only integrity claims and validated bounded inputs — cost if wrong: motivated clients can manipulate casual scores.
+- Final: Ruling: current locked round/phase plus actor uniqueness and receipt authorize submissions, while placements retain exact versions — opponent submission is not a conflict — cost if wrong: round/phase guards must remain intact.
+- Final: Ruling: fast reload explicitly restarts the shared unfinished challenge up to three times per guest per match, preserving submitted attempts — prevent lost transient input and unlimited deadline resets — cost if wrong: both replay the challenge; further reloads cannot request another reset.
+- Final: Ruling: local return is immediate with best-effort server leave — offline/hanging commands cannot block independent local play — cost if wrong: membership remains until the server receives leave or reconciles timeout.
+- Final: Ruling: SQL/client share a 12-percent normalized target envelope and client rejects expired visible targets — include valid mobile edge taps without poisoning prior input — cost if wrong: looser geometry on wider viewports; rankings remain casual.

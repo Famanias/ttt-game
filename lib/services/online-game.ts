@@ -2,7 +2,7 @@
 import { browserSupabase } from '../supabase/browser';
 import type { OnlineRoom, PublicProfile, Mutation } from '../online/contracts';
 
-const messages:Record<string,string>={ONLINE_NOT_CONFIGURED:'Online play is not configured. Local games are available.',ROOM_FULL:'This room already has two players.',ROOM_EXPIRED:'This room has closed or expired.',INVALID_CODE:'Check your six-character invite code.',NOT_MEMBER:'You are not an active member of this room.',NAME_TAKEN:'That display name is taken. Choose another.',RATE_LIMITED:'Too many requests. Wait a minute and try again.',STALE_VERSION:'The game changed. Synced the latest state; try again.',RECONNECT_REQUIRED:'Your guest session needs to reconnect.',INVALID_INPUT:'Check the display name and request details.'};
+const messages:Record<string,string>={RESUME_LIMIT:'This match has reached its reload restart limit. Return to local games if you cannot finish the current attempt.',ONLINE_NOT_CONFIGURED:'Online play is not configured. Local games are available.',ROOM_FULL:'This room already has two players.',ROOM_EXPIRED:'This room has closed or expired.',INVALID_CODE:'Check your six-character invite code.',NOT_MEMBER:'You are not an active member of this room.',NAME_TAKEN:'That display name is taken. Choose another.',RATE_LIMITED:'Too many requests. Wait a minute and try again.',STALE_VERSION:'The game changed. Synced the latest state; try again.',RECONNECT_REQUIRED:'Your guest session needs to reconnect.',INVALID_INPUT:'Check the display name and request details.'};
 export class GameError extends Error { constructor(public code:string){super(messages[code]??code.replaceAll('_',' ').toLowerCase());} }
 
 export async function gameFetch<T>(url:string,body?:unknown,method='POST'):Promise<T> {

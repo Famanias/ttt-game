@@ -15,10 +15,10 @@ Implementation branch: `Famanias/turn-take-backend`, isolated Orca worktree `E:/
 
 No in-memory networking fallback remains. No local/bot leaderboard POST remains. Unconfigured online rooms and leaderboard show explicit unavailable/error states. Online code is implemented, but it is **not claimed to be a verified hosted deployment**.
 
-## Local evidence before final review
+## Local verification
 
 - `bun install --frozen-lockfile --ignore-scripts`: passed; lockfile stable.
-- `bun test`: **29 passed, 0 failed** across six files. Actual SQL runs in PGlite; Auth/transport edges are stand-ins as documented.
+- `bun test`: **39 passed, 0 failed** across nine files. Actual SQL runs in PGlite; Auth/transport edges are stand-ins as documented.
 - `bun run typecheck`: passed.
 - `bun run lint`: **0 errors, 20 warnings**, all existing image-element warnings. No new hook warnings remain.
 - `bun run build`: passed with self-hosted original font families and standard Next.js output.
@@ -26,7 +26,11 @@ No in-memory networking fallback remains. No local/bot leaderboard POST remains.
 - `bun audit --production --json`: `{}` (no production advisories). All-dependency audit: five moderate development-only advisory groups (`@opentelemetry/core`, `glob`, `minimatch`, `postcss-selector-parser`, `uuid`); no high/critical findings. No forced major upgrades/downgrades were applied. The compatible PostCSS override addresses the original transitive high findings.
 - Orca browser loaded the real production lobby: DM Sans active, zero failed images, no horizontal overflow at inspected desktop size. Mobile geometry is covered by Playwright. Original `public/assets/` images are unchanged.
 
-Final independent whole-branch review and any additional tested fixes are recorded in the execution decisions/final handoff; refresh these counts if fixes add tests.
+## Independent final review
+
+A fresh gpt-6-astra reviewer inspected the whole branch. Five Important findings were reproduced and fixed in one regression-tested pass: same-version submissions, ordinary Target Rush late/edge taps, reusable countdown cancellation, fast reload recovery, and offline/hanging local return. The pass also covers a submission committing during reload without losing live subscription. New SQL and real React DOM/hook tests bring the suite to 39; network boundaries in React tests are mocked explicitly, while PostgreSQL transition tests execute the actual migrations.
+
+Deferred minor: `longest_streak` currently measures the two-win bonus-counter peak, so it cannot exceed two. Tracking the uninterrupted win run separately is follow-up work; the locked bonus mechanic is unchanged. Hosted validation and public deployment remain external blockers below.
 
 ## Remaining external blockers
 

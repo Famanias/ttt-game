@@ -20,7 +20,7 @@ For online play, copy `.env.example` to `.env.local`, configure a Supabase proje
 - Two authenticated guests create/join a six-character private room, ready up and start from one committed clock/state.
 - Classic uses transactional turns, eight winning lines, draws, immutable results and two-vote rematches with a new match ID.
 - Clash rotates Perfect Timing → Flash Memory → Target Rush, sharing stored challenge configurations and server-derived scores. Ties start shortened sudden death. Two consecutive wins grant a normal and bonus placement, resetting the placement streak. Every placement checks terminal state immediately.
-- Database deadlines control auto-placement, reconnect pause/grace and forfeits. Realtime only prompts snapshot reads. Browser refresh and duplicate tabs retain the same authenticated seat.
+- Database deadlines control auto-placement, reconnect pause/grace and forfeits. Realtime only prompts snapshot reads. Browser refresh and duplicate tabs retain the same authenticated seat. Reloading an unfinished Clash attempt requests a shared challenge restart (up to three per guest per match); committed submissions survive refresh.
 - Public **casual** rankings are optional per profile, split by Classic/Clash, and based only on finalized online matches. Local/bot play never contributes. `/api/history` returns the guest's finalized match history.
 - Browser input is untrusted. Bounded, timestamped traces catch obvious invalid attempts; they do not provide competitive anti-cheat guarantees. Touch/mouse devices may differ.
 
@@ -51,4 +51,4 @@ See [implementation status](docs/IMPLEMENTATION_STATUS.md), [database ownership/
 
 ## Fonts and dependencies
 
-Outfit, DM Sans and JetBrains Mono are self-hosted under `public/fonts/`, with their SIL OFL licenses. This keeps the existing font families and removes build-time Google Fonts requests. The PostCSS override patches Next's transitive copy without a Next.js major upgrade. Remaining development-only audit findings and deployment limitations are recorded in the status document.
+Outfit, DM Sans and JetBrains Mono are self-hosted under `public/fonts/`, with their SIL OFL licenses. This keeps the existing font families and removes build-time Google Fonts requests. The PostCSS override patches Next's transitive copy without a Next.js major upgrade. The deferred longest-streak statistic currently measures bonus-counter progress (maximum two), rather than an uninterrupted run. Remaining development-only audit findings and deployment limitations are recorded in the status document.

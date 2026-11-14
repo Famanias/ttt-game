@@ -12,7 +12,9 @@ test('configured Classic: isolated guests invite, ready, play, reload and agree 
     const code=await x.getByTestId('room-invite-code').innerText();
     await o.getByRole('textbox',{name:'Join with Invite Code',exact:true}).fill(code);await o.getByRole('button',{name:'Join',exact:true}).click();
     await expect(x.getByText(`GuestB-${suffix} (O)`,{exact:false})).toBeVisible();
-    await x.getByRole('button',{name:'Ready Up',exact:true}).click();await o.getByRole('button',{name:'Ready Up',exact:true}).click();
+    await x.getByRole('button',{name:'Ready Up',exact:true}).click();
+    await expect(o.getByText(`GuestA-${suffix} (X)`,{exact:false})).toContainText('Ready');
+    await o.getByRole('button',{name:'Ready Up',exact:true}).click();
     for(const [cell,player] of [[0,x],[3,o],[1,x],[4,o],[2,x]] as const){
       await player.getByTestId(`board-cell-${cell}`).click();
       await expect(x.getByTestId(`board-cell-${cell}`)).not.toHaveAttribute('data-cell-value','empty');
@@ -20,6 +22,7 @@ test('configured Classic: isolated guests invite, ready, play, reload and agree 
     }
     await expect(x.getByRole('dialog')).toBeVisible();await o.reload();await expect(o.getByRole('dialog')).toBeVisible();
     await x.getByRole('dialog').getByRole('button',{name:'Request Rematch',exact:true}).click();
+    await expect(o.getByRole('status')).toContainText('Rematch votes: 1/2');
     await o.getByRole('dialog').getByRole('button',{name:'Request Rematch',exact:true}).click();
     await expect(x.getByTestId('board-cell-0')).toHaveAttribute('data-cell-value','empty');
     await expect(o.getByTestId('board-cell-0')).toHaveAttribute('data-cell-value','empty');

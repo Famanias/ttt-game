@@ -1,6 +1,6 @@
 # Database schema and authority
 
-Apply the four ordered SQL files in `supabase/migrations/`. Keep migration history immutable after deployment. They form one initial application schema, Classic authority, Clash orchestration, then reliability/rankings hardening. `supabase/config.toml` enables anonymous auth for local development.
+Apply the five ordered SQL files in `supabase/migrations/`. Keep migration history immutable after deployment. They form one initial application schema, Classic authority, Clash orchestration, then reliability/rankings hardening and the final review regression fixes. `supabase/config.toml` enables anonymous auth for local development.
 
 ## Tables
 
@@ -11,7 +11,7 @@ All application tables live in **private**, have RLS enabled, and grant no direc
 | profiles | Auth UUID, normalized unique name, six allowlisted avatars, explicit public ranking choice. Updated only for `auth.uid()` through RPC. |
 | rooms | Cryptographically random UUID-derived six-character code; host, mode, status, expiry (two hours), version and current match FK. Unique code, retry collisions. |
 | room_members | Unique room/user; unique active X/O seat. Room row lock serializes joins. Ready, active/left status, joined/heartbeat timestamps. |
-| matches | Different X/O auth UUIDs, exactly nine valid board cells, phase, turn, outcome, versions, streak/claims, round, deadlines and finalization marker. A trigger rejects changes to finished rows. |
+| matches | Different X/O auth UUIDs, exactly nine valid board cells, phase, turn, outcome, versions, streak/claims, round, deadlines, bounded per-guest reload restart counters and finalization marker. A trigger rejects changes to finished rows. |
 | moves | Unique match/cell and match/sequence. Normal, bonus or automatic placement; server actor and receipt time. |
 | clash_rounds | Unique match/round index; seed, stored shared config, scoring v1, timing and submission window, parent and sudden-death context. |
 | clash_submissions | Unique round/guest; bounded raw trace, derived score/tie-break and server receipt timestamp. Never returned as raw traces. |
@@ -36,10 +36,10 @@ No private table has an allow-all policy. API access is through checked RPC. `re
 
 Mutations take an actor advisory lock, then the room row lock, then the match lock. Join count/slot assignment, legal moves, score acceptance/resolution, claims, rematch start and stats all commit together. Active seat and move/submission/vote uniqueness are additional guards. Stats rows are locked in UUID order before finalization updates.
 
-Successful command receipts are returned unchanged for identical retries; reusing a UUID with a different action/resource/payload fails. Rejected commands create no receipt. Expected versions reject stale intent. The client refetches; saved Clash attempts can be retried after reconciliation. HTTP accepts no client board/winner/score/host/actor fields. SQL independently derives these values even if HTTP is bypassed.
+Successful command receipts are returned unchanged for identical retries; reusing a UUID with a different action/resource/payload fails. Rejected commands create no receipt. Expected versions reject stale placement/vote intent. A locked current round ID, phase, unique participant submission and receipt protect submissions/resume; the opponent submitting does not invalidate the other guest?s version. The client refetches; saved Clash attempts can be retried after reconciliation. HTTP accepts no client board/winner/score/host/actor fields. SQL independently derives these values even if HTTP is bypassed.
 
 Terminal moves set `result_applied` once and finalize both players' stats in the same transaction. Retrying finalization does nothing. Abandoned/unplayed countdowns contribute no match or round statistics. Room series scores come from finalized match rows. Rematch votes change room versions; a rematch inserts a new match with X starting.
 
 ## Verification boundary
 
-`tests/rooms.test.ts`, `classic.test.ts`, `clash.test.ts`, and `reliability.test.ts` run actual PostgreSQL functions, policies and permissions in PGlite. Auth UUID context and Realtime's transport-facing functions are test stand-ins, not a hosted Supabase connection. Native RLS/constraints/SQL execute unmodified. PGlite serializes one connection; deployed multi-connection lock/race behavior requires `scripts/verify-hosted.ts` and hosted smoke. Supabase advisors have not run without a connected project/Docker engine.
+`tests/rooms.test.ts`, `classic.test.ts`, `clash.test.ts`, `reliability.test.ts`, and `review-regressions.test.ts` run actual PostgreSQL functions, policies and permissions in PGlite. Auth UUID context and Realtime's transport-facing functions are test stand-ins, not a hosted Supabase connection. Native RLS/constraints/SQL execute unmodified. PGlite serializes one connection; deployed multi-connection lock/race behavior requires `scripts/verify-hosted.ts` and hosted smoke. Supabase advisors have not run without a connected project/Docker engine.

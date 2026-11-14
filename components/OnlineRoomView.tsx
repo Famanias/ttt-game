@@ -23,7 +23,7 @@ export function OnlineRoomView({initialRoom,onExit,muted,onToggleMute}:{initialR
   useEffect(()=>{const tick=()=>setNow(Date.now()+offset);tick();const timer=setInterval(tick,150);return()=>clearInterval(timer);},[offset]);
   const local=adaptRoom(room);const match=room.match;
   const mine=room.members.find(member=>member.slot===room.myMark)!;
-  const leave=async()=>{if(await send('leave'))onExit();};
+  const leave=()=>{void send('leave').catch(()=>{});onExit();};
   const openLeaderboard=()=>setLeaderboard(true);
   const status=<div role="status" className="text-sm text-[#CBD5E1] space-y-2">
     <p>{connected?'Live connection':'Reconnecting live updates ? checking saved state'}</p>
@@ -38,7 +38,8 @@ export function OnlineRoomView({initialRoom,onExit,muted,onToggleMute}:{initialR
   const locked=busy||!!error||match.phase==='paused'||match.phase==='finished'||(match.phase!=='classic_turn'&&match.phase!=='claim');
   const o=local.players.O!;
   return <>
-    <div className="fixed top-0 inset-x-0 z-30 bg-[#10141D]/95 px-4 py-2 text-center text-sm text-[#CBD5E1]" role="status">
+    <button type="button" onClick={leave} className="fixed bottom-4 right-4 z-[70] min-h-[44px] px-4 rounded-xl bg-[#151B28] border border-[#65737C] text-sm text-[#43DDE6]">Return to Local Games</button>
+    <div className="fixed top-0 inset-x-0 z-[60] bg-[#10141D]/95 px-4 py-2 text-center text-sm text-[#CBD5E1]" role="status">
       {error??(match.phase==='paused'?`Paused for reconnect ? ${Math.max(0,Math.ceil((Date.parse(match.reconnectDeadline!)-now)/1000))}s grace remaining`:match.phase==='claim'?`${match.claimant} claims ? ${Math.max(0,Math.ceil((Date.parse(match.deadlineAt!)-now)/1000))}s remaining`:connected?'Private room ? live saved state':'Reconnecting updates ? checking saved state')}
       {match.phase==='finished'&&<span> ? {room.members.some(m=>m.status==='left')?'Opponent left the room. ':''}{match.reason?.replaceAll('_',' ')} ? Rematch votes: {match.rematchVotes.filter(v=>v.accepted).length}/2</span>}
     </div>

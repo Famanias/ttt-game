@@ -67,13 +67,15 @@ try{
   console.log('PASS hosted Classic: private seats/channel, nonmember denial, move race, finalization and rematch.');
 
   r=await start('clash');
+  const beforeReload=r.match!.round!;r=await mutate(0,'resume',r,{roundId:beforeReload.id});
+  assert.notEqual(r.match!.round!.id,beforeReload.id);assert.deepEqual(r.match!.round!.config,beforeReload.config);
   for(let index=0;index<3;index++){
     const round=r.match!.round!;assert.equal(round.type,['perfect-timing','flash-memory','target-rush'][index]);
     const other=await get(1,r.code);assert.deepEqual(other.match!.round,round);
     await waitUntil(Date.parse(round.endAt)+50);
-    r=await mutate(0,'submit',await get(0,r.code),{roundId:round.id,trace:trace(round,true)});
-    assert.equal(r.match!.round!.scores,null);
-    r=await mutate(1,'submit',r,{roundId:round.id,trace:trace(round,false)});
+    const version=r.match!.version;
+    const submissions=await Promise.all([0,1].map(who=>rpc(who,'submit',r.code,command({expectedVersion:version,roundId:round.id,trace:trace(round,who===0)}))));
+    assert(submissions.every(result=>!result.error),JSON.stringify(submissions));r=await get(0,r.code);
     assert.equal(r.match!.claimant,'X');
     assert.equal((await rpc(1,'move',r.code,command({expectedVersion:r.match!.version,cellIndex:2}))).error.code,'NOT_YOUR_TURN');
     for(const cellIndex of index===0?[0]:index===1?[1,8]:[2])r=await mutate(0,'move',r,{cellIndex});

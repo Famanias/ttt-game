@@ -11,6 +11,7 @@ export function useOnlineRoom(initial:OnlineRoom) {
   const [connected,setConnected]=useState(false);
   const [present,setPresent]=useState<string[]>([]);
   const [offset,setOffset]=useState(()=>Date.parse(initial.serverNow)-Date.now());
+  const recoveryAttempted=useRef(false);
   const latest=useRef(initial);const active=useRef(true);const sending=useRef(false);
   const accept=useCallback((next:OnlineRoom,sentAt:number)=>{
     if(!active.current || next.id!==latest.current.id || next.version<latest.current.version)return;
@@ -18,7 +19,7 @@ export function useOnlineRoom(initial:OnlineRoom) {
   },[]);
   const refresh=useCallback(async()=>{
     const sent=Date.now();
-    try{const data=await onlineGame.snapshot(initial.code);accept(data.room,sent);if(active.current)setError(null);}
+    try{const data=await onlineGame.snapshot(initial.code);accept(data.room,sent);if(active.current)setError(null);return data.room;}
     catch(err){if(active.current)setError(err instanceof Error?err.message:'Connection lost. Reconnecting…');}
   },[initial.code,accept]);
   const send=useCallback(async(action:Mutation,payload:Record<string,unknown>={})=>{
@@ -34,7 +35,20 @@ export function useOnlineRoom(initial:OnlineRoom) {
     let unsubscribe:(()=>void)|undefined;
     const client=browserSupabase();
     const boot=async()=>{
-      await ensureGuest();await refresh();
+      await ensureGuest();const snapshot=await refresh();
+      if(disposed||!active.current)return;
+      if(initial.match?.phase==='round' && snapshot?.match?.phase==='round' && snapshot.match.round && !snapshot.match.round.submitted[snapshot.myMark] && !recoveryAttempted.current){
+        recoveryAttempted.current=true;const sent=Date.now();
+        try {
+          const resumed=await onlineGame.command(snapshot,'resume',{roundId:snapshot.match.round.id});
+          accept(resumed.room,sent);
+        } catch(err) {
+          // A pending submission may have committed since the initial read.
+          // Reconcile, then establish the channel even if no restart is legal.
+          await refresh();
+          if(!disposed&&active.current)setError(err instanceof Error?err.message:'Could not restart the attempt.');
+        }
+      }
       if(disposed||!active.current)return;
       const {data:{session}}=await client.auth.getSession();
       await client.realtime.setAuth(session?.access_token);
@@ -60,6 +74,6 @@ export function useOnlineRoom(initial:OnlineRoom) {
     const poll=setInterval(()=>void refresh(),2500);
     const focus=()=>{void refresh();};window.addEventListener('focus',focus);
     return ()=>{disposed=true;active.current=false;clearInterval(heartbeat);clearInterval(poll);window.removeEventListener('focus',focus);unsubscribe?.();if(channel)void client.removeChannel(channel);};
-  },[initial.code,initial.id,accept,refresh]);
+  },[initial.code,initial.id,initial.match?.phase,accept,refresh]);
   return {room,error,busy,connected,present,offset,send,refresh};
 }

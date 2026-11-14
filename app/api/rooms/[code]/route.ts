@@ -10,7 +10,7 @@ export async function POST(request:Request,{params}:Context){
   try {
     const code=roomCode.safeParse((await params).code);if(!code.success)return failure('INVALID_CODE');
     const body=await readBody(request);
-    if(!body || typeof body!=='object' || !['join','ready','leave','heartbeat','move','submit','rematch'].includes(body.action))return failure('INVALID_INPUT');
+    if(!body || typeof body!=='object' || !['join','ready','leave','heartbeat','move','submit','rematch','resume'].includes(body.action))return failure('INVALID_INPUT');
     const {action,...payload}=body;
     return api(request,action,code.data,payload);
   } catch {return failure('INVALID_INPUT');}

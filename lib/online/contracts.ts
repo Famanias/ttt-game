@@ -12,6 +12,7 @@ export const schemas = {
   ready: z.object({ ...version, ready: z.boolean() }).strict(),
   leave: z.object(version).strict(),
   heartbeat: z.object(receipt).strict(),
+  resume: z.object({ ...version, roundId:z.uuid() }).strict(),
   move: z.object({ ...version, cellIndex: z.number().int().min(0).max(8) }).strict(),
   rematch: z.object({ ...version, accepted: z.boolean() }).strict(),
   submit: z.object({ ...version, roundId: z.uuid(), trace: z.object({ version: z.literal(1), finishedAt: z.number().int().min(0).max(20000).optional(), events: z.array(z.object({ t: z.number().int().min(0).max(20000), cell: z.number().int().min(0).max(8).optional(), targetId: z.number().int().min(-1).max(79).optional(), x: z.number().min(0).max(100).optional(), y: z.number().min(0).max(100).optional() }).strict()).max(80) }).strict() }).strict(),
