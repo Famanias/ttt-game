@@ -1,0 +1,6 @@
+{
+  "name": "TURN//TAKE",
+  "description": "Competitive 2D neo-arcade Tic-Tac-Toe featuring crisp Classic Mode, head-to-head Clash minigames, streak bonus turns, private invite-code rooms, and live leaderboards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
