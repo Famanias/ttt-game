@@ -53,3 +53,12 @@ export async function room(db: PGlite, mode = 'classic') {
   await profile(db, USERS[0], 'Alpha'); await profile(db, USERS[1], 'Beta');
   return request(db, USERS[0], 'create', '', command({ mode }));
 }
+
+export async function startMatch(db:PGlite,mode='classic') {
+  let r=(await room(db,mode)).room;
+  r=(await request(db,USERS[1],'join',r.code,command())).room;
+  r=(await request(db,USERS[0],'ready',r.code,command({expectedVersion:r.version,ready:true}))).room;
+  r=(await request(db,USERS[1],'ready',r.code,command({expectedVersion:r.version,ready:true}))).room;
+  await db.query("update private.matches set start_at=now()-interval '1 second' where id=$1",[r.match.id]);
+  return (await request(db,USERS[0],'snapshot',r.code)).room;
+}

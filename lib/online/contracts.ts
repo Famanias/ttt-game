@@ -14,7 +14,7 @@ export const schemas = {
   heartbeat: z.object(receipt).strict(),
   move: z.object({ ...version, cellIndex: z.number().int().min(0).max(8) }).strict(),
   rematch: z.object({ ...version, accepted: z.boolean() }).strict(),
-  submit: z.object({ ...version, roundId: z.uuid(), trace: z.object({ version: z.literal(1), events: z.array(z.object({ t: z.number().int().min(0).max(20000), cell: z.number().int().min(0).max(8).optional(), targetId: z.number().int().min(-1).max(79).optional(), x: z.number().min(0).max(100).optional(), y: z.number().min(0).max(100).optional() }).strict()).max(80) }).strict() }).strict(),
+  submit: z.object({ ...version, roundId: z.uuid(), trace: z.object({ version: z.literal(1), finishedAt: z.number().int().min(0).max(20000).optional(), events: z.array(z.object({ t: z.number().int().min(0).max(20000), cell: z.number().int().min(0).max(8).optional(), targetId: z.number().int().min(-1).max(79).optional(), x: z.number().min(0).max(100).optional(), y: z.number().min(0).max(100).optional() }).strict()).max(80) }).strict() }).strict(),
 } as const;
 export type Mutation = keyof typeof schemas;
 export type Trace = z.infer<typeof schemas.submit>['trace'];

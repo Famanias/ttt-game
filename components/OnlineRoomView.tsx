@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import type { OnlineRoom } from '@/lib/online/contracts';
 import { adaptRoom } from '@/lib/online/contracts';
 import { useOnlineRoom } from '@/hooks/use-online-room';
+import { ClashMinigameModal } from './ClashMinigameModal';
 import { WaitingRoomScreen } from './WaitingRoomScreen';
 import { ArenaScreen } from './ArenaScreen';
 import { OutcomeModal } from './OutcomeModal';
@@ -44,6 +45,9 @@ export function OnlineRoomView({initialRoom,onExit,muted,onToggleMute}:{initialR
       pendingPlacer={local.pendingPlacer} activeMinigame={local.activeMinigame} botThinking={false} muted={muted} networkLocked={locked}
       onCellClick={cellIndex=>{if(!locked)void send('move',{cellIndex});}} onLaunchClash={()=>{}}
       onRestart={()=>{if(match.phase==='finished')void send('rematch',{accepted:true});}} onBackToLobby={()=>void leave()} onOpenLeaderboard={openLeaderboard} onToggleMute={onToggleMute}/>
+    {match.phase==='round'&&match.round&&<ClashMinigameModal key={match.round.id} round={match.round.index} minigame={match.round.type} opponentType="room" playerX={local.players.X} playerO={o} localRoomMark={room.myMark}
+      xSubmittedScore={match.round.submitted.X?0:null} oSubmittedScore={match.round.submitted.O?0:null} lastSummary={null} onSubmitSingleScore={()=>{}} onContinueAfterSummary={()=>{}}
+      online={{round:match.round,offset,busy,onTrace:trace=>{void send('submit',{roundId:match.round!.id,trace});}}}/>}
     {match.phase==='finished'&&local.winner&&<OutcomeModal winner={local.winner} mode={room.mode} playerX={local.players.X} playerO={o} moveCount={local.moveCount} sessionScores={local.scores} bestStreak={0}
       playAgainLabel={match.rematchVotes.some(v=>v.userId===mine.userId&&v.accepted)?'Waiting for Opponent?':'Request Rematch'}
       onPlayAgain={()=>{void send('rematch',{accepted:true});}} onBackToLobby={()=>void leave()} onOpenLeaderboard={openLeaderboard}/>}
