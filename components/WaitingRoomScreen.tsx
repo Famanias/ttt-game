@@ -10,19 +10,23 @@ interface WaitingRoomScreenProps {
   room: RoomState;
   onSwitchToBot: () => void;
   onCancel: () => void;
+  children?: React.ReactNode;
+  heading?: string;
 }
 
 export function WaitingRoomScreen({
   room,
   onSwitchToBot,
   onCancel,
+  children,
+  heading,
 }: WaitingRoomScreenProps) {
   const [copied, setCopied] = useState(false);
 
   const shareUrl =
     typeof window !== 'undefined'
-      ? `${window.location.origin}/?room=${room.code}`
-      : `/?room=${room.code}`;
+      ? `${window.location.origin}/room/${room.code}`
+      : `/room/${room.code}`;
 
   const handleCopy = async () => {
     try {
@@ -84,7 +88,7 @@ export function WaitingRoomScreen({
         </p>
 
         <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-[#F4F4F0] mt-1">
-          Waiting for Opponent
+          {heading ?? 'Waiting for Opponent'}
         </h1>
 
         <p className="text-sm sm:text-[15px] leading-relaxed text-[#CBD5E1] mt-2">
@@ -102,6 +106,8 @@ export function WaitingRoomScreen({
         </div>
 
         <div className="flex flex-col gap-3">
+          {children}
+          <button type="button" onClick={() => { void navigator.clipboard.writeText(room.code).then(()=>setCopied(true)).catch(()=>setCopied(false)); }} className="min-h-[44px] text-[#43DDE6] underline">Copy Invite Code</button>
           <button
             type="button"
             onClick={handleCopy}
@@ -126,7 +132,7 @@ export function WaitingRoomScreen({
             className="w-full inline-flex items-center justify-center gap-2 min-h-[44px] py-2.5 px-4 rounded-xl font-medium text-xs sm:text-sm bg-[#10141D] text-[#E2E8F0] border border-[#65737C]/35 hover:border-[#F4F4F0]/55 active:scale-[0.98] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#43DDE6]"
           >
             <Bot className="w-4 h-4 text-[#FF795E]" />
-            Play Against Bot Instead
+            Back to Local Games
           </button>
         </div>
       </main>

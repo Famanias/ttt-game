@@ -8,6 +8,9 @@ export async function serverSupabase() {
   const store=await cookies();
   return createServerClient(url,key,{cookies:{
     getAll:()=>store.getAll(),
-    setAll:values=>{ values.forEach(({name,value,options})=>store.set(name,value,options)); },
+    setAll:values=>{
+      // Server Components cannot set cookies; middleware refreshes them.
+      try { values.forEach(({name,value,options})=>store.set(name,value,options)); } catch {}
+    },
   }});
 }
