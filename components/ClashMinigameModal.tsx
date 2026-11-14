@@ -5,6 +5,7 @@ import { motion } from 'motion/react';
 import { Crosshair, RotateCcw, Sparkles, Zap } from 'lucide-react';
 import { MINIGAME_META, TURN_TAKE_ASSETS } from '@/lib/game/assets';
 import { soundEngine } from '@/lib/game/audio';
+import { captureTargetEvent } from '@/lib/online/input';
 import {
   generateFlashPattern,
   scoreFlashMemory,
@@ -17,7 +18,12 @@ import type {
   PlayerProfile,
 } from '@/lib/game/types';
 
+import type { OnlineRound, Trace } from '@/lib/online/contracts';
+
+export interface OnlineChallenge { round:OnlineRound; offset:number; now:number; onTrace:(trace:Trace)=>void; busy:boolean; }
+
 interface ClashMinigameModalProps {
+  online?: OnlineChallenge;
   round: number;
   minigame: MinigameId;
   opponentType: OpponentType;
@@ -67,25 +73,33 @@ function PerfectTimingStage({
   round,
   activeMark,
   onSubmitScore,
+  online,
 }: {
+  online?: OnlineChallenge;
   round: number;
   activeMark: Mark;
   onSubmitScore: (mark: Mark, score: number) => void;
 }) {
-  const targetCenterDeg = useMemo(() => (round * 73 + 45) % 360, [round]);
+  const onlineRef=useRef(online);
+  useEffect(()=>{onlineRef.current=online;},[online]);
+  const targetCenterDeg = online?.round.config.targetCenter ?? (round * 73 + 45) % 360;
+  const timingEvents=useRef<Array<{t:number}>>([]);
+  const [pressCount,setPressCount]=useState(0);
   const [timingLocked, setTimingLocked] = useState(false);
   const needleRef = useRef(0);
   const needleGroupRef = useRef<SVGGElement>(null);
 
   useEffect(() => {
+    const settings=onlineRef.current;
     let rafId = 0;
     let lastTime = performance.now();
-    const speedDegPerSec = 230 + Math.min(round * 14, 110);
+    const speedDegPerSec = settings?.round.config.speed ?? 230 + Math.min(round * 14, 110);
 
     const tick = (now: number) => {
+      const online=onlineRef.current;
       const dt = Math.min((now - lastTime) / 1000, 0.05);
       lastTime = now;
-      needleRef.current = (needleRef.current + speedDegPerSec * dt) % 360;
+      needleRef.current = online ? Math.max(0,Date.now()+online.offset-Date.parse(online.round.startAt))*speedDegPerSec/1000%360 : (needleRef.current + speedDegPerSec * dt) % 360;
       if (needleGroupRef.current) {
         needleGroupRef.current.setAttribute(
           'transform',
@@ -97,7 +111,7 @@ function PerfectTimingStage({
 
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [round]);
+  }, [round,online?.round.id]);
 
   const arcPath = useMemo(() => {
     const startAngle = ((targetCenterDeg - 22 - 90) * Math.PI) / 180;
@@ -114,11 +128,18 @@ function PerfectTimingStage({
 
   const handleLockTiming = useCallback(() => {
     if (timingLocked) return;
+    if(online){
+      const t=Math.round(Date.now()+online.offset-Date.parse(online.round.startAt));
+      if(t<0||t>online.round.config.durationMs||online.busy||t-(timingEvents.current.at(-1)?.t??-1000)<120)return;
+      timingEvents.current.push({t});setPressCount(timingEvents.current.length);
+      if(timingEvents.current.length===online.round.config.presses){setTimingLocked(true);online.onTrace({version:1,events:[...timingEvents.current]});}
+      soundEngine.playTimingHit(scorePerfectTiming(needleRef.current,targetCenterDeg,22));return;
+    }
     setTimingLocked(true);
     const score = scorePerfectTiming(needleRef.current, targetCenterDeg, 22);
     soundEngine.playTimingHit(score);
     onSubmitScore(activeMark, score);
-  }, [timingLocked, targetCenterDeg, activeMark, onSubmitScore]);
+  }, [timingLocked, targetCenterDeg, activeMark, onSubmitScore,online]);
 
   return (
     <div className="flex flex-col items-center gap-5">
@@ -188,7 +209,7 @@ function PerfectTimingStage({
         disabled={timingLocked}
         className="btn-arcade-sheen min-h-[48px] px-8 py-3 rounded-xl font-semibold text-sm sm:text-base bg-[#FFDA79] text-[#10141D] hover:bg-[#ffe396] active:scale-[0.98] disabled:opacity-50 transition-all cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4F4F0]"
       >
-        Lock In Timing
+        {online?`Lock In Timing (${pressCount}/${online.round.config.presses})`:'Lock In Timing'}
       </button>
     </div>
   );
@@ -198,40 +219,48 @@ function FlashMemoryStage({
   round,
   activeMark,
   onSubmitScore,
+  online,
 }: {
+  online?: OnlineChallenge;
   round: number;
   activeMark: Mark;
   onSubmitScore: (mark: Mark, score: number) => void;
 }) {
-  const [memoryPattern] = useState<number[]>(() => generateFlashPattern(round));
+  const onlineRef=useRef(online);
+  useEffect(()=>{onlineRef.current=online;},[online]);
+  const [memoryPattern] = useState<number[]>(() => online?.round.config.pattern ?? generateFlashPattern(round));
   const [memoryPhase, setMemoryPhase] = useState<'memorize' | 'recall'>(
     'memorize'
   );
   const [memorySelected, setMemorySelected] = useState<number[]>([]);
   const recallStartRef = useRef<number>(0);
+  const memoryEvents=useRef<Array<{t:number;cell:number}>>([]);
 
   useEffect(() => {
+    const online=onlineRef.current;
     const timer = setTimeout(() => {
       setMemoryPhase('recall');
       recallStartRef.current = performance.now();
-    }, 1550);
+    }, online?Math.max(0,Date.parse(online.round.startAt)+(online.round.config.revealMs??1550)-Date.now()-online.offset):1550);
     return () => clearTimeout(timer);
-  }, []);
+  }, [online?.round.id]);
 
-  const toggleMemoryTile = (idx: number) => {
+  const toggleMemoryTile = useCallback((idx: number) => {
     if (memoryPhase !== 'recall') return;
+    if(online){const t=Math.round(Date.now()+online.offset-Date.parse(online.round.startAt));if(t-(memoryEvents.current.at(-1)?.t??-1000)<35||t>online.round.config.durationMs)return;memoryEvents.current.push({t,cell:idx});}
     soundEngine.playMemoryBlip(memorySelected.length);
     setMemorySelected((prev) =>
       prev.includes(idx) ? prev.filter((item) => item !== idx) : [...prev, idx]
     );
-  };
+  },[memoryPhase,online,memorySelected.length]);
 
-  const submitFlashMemory = () => {
+  const submitFlashMemory = useCallback(() => {
+    if(online){online.onTrace({version:1,finishedAt:Math.round(Date.now()+online.offset-Date.parse(online.round.startAt)),events:[...memoryEvents.current]});return;}
     const elapsed = performance.now() - recallStartRef.current;
     const score = scoreFlashMemory(memoryPattern, memorySelected, elapsed);
     soundEngine.playTimingHit(score);
     onSubmitScore(activeMark, score);
-  };
+  },[online,memoryPattern,memorySelected,activeMark,onSubmitScore]);
 
   return (
     <div className="flex flex-col items-center gap-5">
@@ -277,7 +306,7 @@ function FlashMemoryStage({
         <button
           type="button"
           disabled={memoryPhase === 'memorize'}
-          onClick={() => setMemorySelected([])}
+          onClick={() => { setMemorySelected([]);memoryEvents.current=[]; }}
           className="inline-flex items-center gap-1.5 min-h-[44px] px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium bg-[#10141D] text-[#CBD5E1] border border-[#65737C]/35 hover:text-[#F4F4F0] disabled:opacity-40 active:scale-95 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#43DDE6]"
         >
           <RotateCcw className="w-4 h-4" />
@@ -299,45 +328,63 @@ function FlashMemoryStage({
 function TargetRushStage({
   activeMark,
   onSubmitScore,
+  online,
 }: {
+  online?: OnlineChallenge;
   activeMark: Mark;
   onSubmitScore: (mark: Mark, score: number) => void;
 }) {
+  const onlineRef=useRef(online);
+  useEffect(()=>{onlineRef.current=online;},[online]);
   const [rushTimeLeft, setRushTimeLeft] = useState(5.5);
   const [rushScore, setRushScore] = useState(0);
   const [targets, setTargets] = useState<TargetBubble[]>(() =>
-    createTargetBatch(4)
+    online ? [] : createTargetBatch(4)
   );
   const rushScoreRef = useRef(0);
   const rushFinishedRef = useRef(false);
+  const hitIds=useRef(new Set<number>());
+  const rushEvents=useRef<Trace['events']>([]);
 
   useEffect(() => {
     const start = performance.now();
-    const durationMs = 5500;
+    const durationMs = onlineRef.current?.round.config.durationMs ?? 5500;
     const interval = setInterval(() => {
-      const elapsed = performance.now() - start;
+      const online=onlineRef.current;
+      const elapsed = online?Date.now()+online.offset-Date.parse(online.round.startAt):performance.now() - start;
+      if(online)setTargets((online.round.config.targets??[]).filter(t=>t.spawn<=elapsed&&t.end>elapsed&&!hitIds.current.has(t.id)).map(t=>({...t,radius:t.points===140?22:26,isBonus:t.points===140})));
       const remaining = Math.max(0, (durationMs - elapsed) / 1000);
       setRushTimeLeft(remaining);
       if (remaining <= 0 && !rushFinishedRef.current) {
         rushFinishedRef.current = true;
         clearInterval(interval);
-        onSubmitScore(activeMark, rushScoreRef.current);
+        if(online)online.onTrace({version:1,events:[...rushEvents.current]});else onSubmitScore(activeMark, rushScoreRef.current);
       }
     }, 80);
 
     return () => clearInterval(interval);
-  }, [activeMark, onSubmitScore]);
+  }, [activeMark, onSubmitScore,online?.round.id]);
 
-  const handleHitTarget = (target: TargetBubble) => {
+  const handleHitTarget = useCallback((target: TargetBubble, event:React.MouseEvent<HTMLButtonElement>) => {
     if (rushFinishedRef.current) return;
+    if(online){
+      const t=Math.round(Date.now()+online.offset-Date.parse(online.round.startAt));
+      if(hitIds.current.has(target.id)||t-(rushEvents.current.at(-1)?.t??-1000)<40||t>online.round.config.durationMs)return;
+      const rect=event.currentTarget.parentElement!.getBoundingClientRect();
+      const x=event.detail===0?target.x:(event.clientX-rect.left)/rect.width*100;
+      const y=event.detail===0?target.y:(event.clientY-rect.top)/rect.height*100;
+      const captured=captureTargetEvent(online.round.config,target.id,t,{x,y},hitIds.current,rushEvents.current.at(-1)?.t??-1000);
+      if(!captured)return;
+      rushEvents.current.push(captured);hitIds.current.add(target.id);
+    }
     soundEngine.playTargetHit(target.isBonus);
     rushScoreRef.current += target.points;
     setRushScore(rushScoreRef.current);
     setTargets((prev) => [
       ...prev.filter((item) => item.id !== target.id),
-      ...createTargetBatch(1),
+      ...(online?[]:createTargetBatch(1)),
     ]);
-  };
+  },[online]);
 
   return (
     <div className="space-y-4">
@@ -357,7 +404,7 @@ function TargetRushStage({
           <button
             key={target.id}
             type="button"
-            onClick={() => handleHitTarget(target)}
+            onClick={event => handleHitTarget(target,event)}
             aria-label={target.isBonus ? 'Bonus gold target' : 'Target'}
             style={{
               left: `${target.x}%`,
@@ -385,6 +432,7 @@ function TargetRushStage({
 }
 
 export function ClashMinigameModal({
+  online,
   round,
   minigame,
   opponentType,
@@ -428,7 +476,7 @@ export function ClashMinigameModal({
     oSubmittedScore === null &&
     confirmedHandoffRound !== round;
 
-  const stageKey = `${round}-${minigame}-${activeMark}`;
+  const stageKey = `${online?.round.id??round}-${minigame}-${activeMark}`;
 
   return (
     <motion.div
@@ -560,16 +608,16 @@ export function ClashMinigameModal({
           <div className="py-10 text-center space-y-3">
             <Zap className="w-8 h-8 text-[#FFDA79] mx-auto" />
             <p className="font-display text-lg font-semibold text-[#F4F4F0]">
-              Score Locked:{' '}
+              {online?'Attempt submitted': 'Score Locked:'}{' '}
               <span className="font-mono text-[#43DDE6]">
-                {localRoomMark === 'X' ? xSubmittedScore : oSubmittedScore}
+                {online?'':localRoomMark === 'X' ? xSubmittedScore : oSubmittedScore}
               </span>
             </p>
             <p className="text-sm text-[#94A3B8]">
               Waiting for your opponent to finish {meta.title}...
             </p>
           </div>
-        ) : needsLocalHandoff ? (
+        ) : online && online.now<Date.parse(online.round.startAt) ? (<p role="status" className="py-12 text-center text-3xl text-[#FFDA79]">Clash starts in {Math.ceil((Date.parse(online.round.startAt)-online.now)/1000)}</p>) : needsLocalHandoff ? (
           <div className="py-10 text-center space-y-5">
             <p className="text-sm text-[#94A3B8]">
               {playerX.name} scored{' '}
@@ -595,6 +643,7 @@ export function ClashMinigameModal({
                 key={stageKey}
                 round={round}
                 activeMark={activeMark}
+                online={online}
                 onSubmitScore={onSubmitSingleScore}
               />
             )}
@@ -603,6 +652,7 @@ export function ClashMinigameModal({
                 key={stageKey}
                 round={round}
                 activeMark={activeMark}
+                online={online}
                 onSubmitScore={onSubmitSingleScore}
               />
             )}
@@ -610,6 +660,7 @@ export function ClashMinigameModal({
               <TargetRushStage
                 key={stageKey}
                 activeMark={activeMark}
+                online={online}
                 onSubmitScore={onSubmitSingleScore}
               />
             )}

@@ -7,6 +7,8 @@ import { TURN_TAKE_ASSETS } from '@/lib/game/assets';
 import type { GameMode, Mark, PlayerProfile } from '@/lib/game/types';
 
 interface OutcomeModalProps {
+  playAgainLabel?: string;
+  outcomeLabel?: string;
   winner: Mark | 'draw';
   mode: GameMode;
   playerX: PlayerProfile;
@@ -20,6 +22,8 @@ interface OutcomeModalProps {
 }
 
 export function OutcomeModal({
+  playAgainLabel,
+  outcomeLabel,
   winner,
   mode,
   playerX,
@@ -83,7 +87,7 @@ export function OutcomeModal({
           data-testid="outcome-heading"
           className="font-display text-3xl font-extrabold mt-1 text-[#F4F4F0]"
         >
-          {isDraw ? (
+          {outcomeLabel ?? (isDraw ? (
             'Balanced Draw'
           ) : (
             <>
@@ -94,7 +98,7 @@ export function OutcomeModal({
               </span>{' '}
               Wins
             </>
-          )}
+          ))}
         </h2>
 
         <div className="grid grid-cols-3 gap-2.5 my-5">
@@ -128,7 +132,7 @@ export function OutcomeModal({
             className="btn-arcade-sheen w-full inline-flex items-center justify-center gap-2 min-h-[48px] py-3 px-5 rounded-xl font-semibold text-sm sm:text-base bg-[#43DDE6] text-[#10141D] hover:bg-[#62e6ed] active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4F4F0]"
           >
             <RotateCcw className="w-4 h-4" />
-            Play Again
+            {playAgainLabel ?? 'Play Again'}
           </button>
 
           <div className="grid grid-cols-2 gap-2.5">

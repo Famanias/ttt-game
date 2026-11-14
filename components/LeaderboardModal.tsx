@@ -4,15 +4,21 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Trophy, X } from 'lucide-react';
 import { getAvatarSrc } from '@/lib/game/assets';
-import type { LeaderboardEntry } from '@/lib/game/types';
+import type { GameMode, LeaderboardEntry } from '@/lib/game/types';
 
 interface LeaderboardModalProps {
+  error?: string | null;
+  mode?: GameMode;
+  onModeChange?: (mode:GameMode)=>void;
   entries: LeaderboardEntry[];
   loading: boolean;
   onClose: () => void;
 }
 
 export function LeaderboardModal({
+  error,
+  mode='clash',
+  onModeChange,
   entries,
   loading,
   onClose,
@@ -39,7 +45,7 @@ export function LeaderboardModal({
           <div className="flex items-center gap-2.5">
             <Trophy className="w-5 h-5 text-[#FFDA79]" />
             <h2 className="font-display text-xl sm:text-2xl font-bold text-[#F4F4F0]">
-              Arcade Leaderboard
+              Casual Rankings
             </h2>
           </div>
           <button
@@ -52,14 +58,16 @@ export function LeaderboardModal({
           </button>
         </div>
 
+        <p className="mt-3 text-xs text-[#94A3B8]">Server-confirmed online matches only. Browser input is not cheat-proof. Names appear by player choice.</p>
+        {onModeChange&&<div className="flex gap-3 mt-3">{(['clash','classic'] as const).map(item=><button key={item} aria-pressed={mode===item} onClick={()=>onModeChange(item)} className="min-h-[44px] px-4 rounded-xl border border-[#65737C]/40 text-[#43DDE6]">{item==='clash'?'Online Clash':'Online Classic'}</button>)}</div>}
         <div className="mt-4 max-h-[62vh] overflow-y-auto overflow-x-hidden">
           {loading ? (
             <p className="py-10 text-center text-sm sm:text-base text-[#94A3B8]">
               Loading standings...
             </p>
-          ) : entries.length === 0 ? (
+          ) : error ? <p role="alert" className="py-10 text-center text-sm text-[#FF795E]">{error}</p> : entries.length === 0 ? (
             <p className="py-10 text-center text-sm sm:text-base text-[#94A3B8]">
-              Complete a match to claim the top rank.
+              No published results yet. Complete an online match and opt in to appear here.
             </p>
           ) : (
             <table className="w-full text-left border-collapse">

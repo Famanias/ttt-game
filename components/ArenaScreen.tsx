@@ -31,6 +31,7 @@ import { GameBoard } from './GameBoard';
 import { TurnTakeLogo } from './TurnTakeLogo';
 
 interface ArenaScreenProps {
+  networkLocked?: boolean;
   mode: GameMode;
   opponentType: OpponentType;
   botDifficulty: BotDifficulty;
@@ -100,6 +101,7 @@ function StreakSocketGauge({
 }
 
 export function ArenaScreen({
+  networkLocked = false,
   mode,
   opponentType,
   botDifficulty,
@@ -132,6 +134,7 @@ export function ArenaScreen({
     : pendingPlacer ?? currentTurn;
 
   const canPlaceOnBoard = (() => {
+    if (networkLocked) return false;
     if (winner !== null) return false;
     if (isClassic) {
       if (opponentType === 'bot') return currentTurn === 'X' && !botThinking;
@@ -253,7 +256,7 @@ export function ArenaScreen({
             className="inline-flex items-center justify-center gap-1.5 min-w-[42px] min-h-[42px] px-3 py-2 rounded-xl text-xs sm:text-sm font-medium bg-[#151C2A]/90 text-[#F4F4F0] border border-[#65737C]/35 hover:border-[#F4F4F0]/55 active:scale-95 transition-all cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#43DDE6]"
           >
             <RotateCcw className="w-4 h-4" />
-            <span className="hidden sm:inline">Restart</span>
+            <span className="hidden sm:inline">{opponentType === 'room' ? 'Request Rematch' : 'Restart'}</span>
           </button>
           <button
             type="button"

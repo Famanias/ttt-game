@@ -18,7 +18,6 @@ import type {
   BotDifficulty,
   GameMode,
   GameScreen,
-  LeaderboardEntry,
   Mark,
   MinigameId,
   MinigameSelection,
@@ -33,6 +32,10 @@ import { LeaderboardModal } from './LeaderboardModal';
 import { LobbyScreen } from './LobbyScreen';
 import { OutcomeModal } from './OutcomeModal';
 import { WaitingRoomScreen } from './WaitingRoomScreen';
+import { OnlineRoomView } from './OnlineRoomView';
+import { onlineGame, ensureGuest } from '@/lib/services/online-game';
+import { useLeaderboard } from '@/hooks/use-leaderboard';
+import type { OnlineRoom } from '@/lib/online/contracts';
 
 interface TurnTakeAppProps {
   initialAutostart?: boolean;
@@ -95,6 +98,8 @@ export function TurnTakeApp({
     bonusTriggered: boolean;
   } | null>(null);
 
+  const [onlineRoom,setOnlineRoom]=useState<OnlineRoom|null>(null);
+  const [publicLeaderboard,setPublicLeaderboard]=useState(false);
   // Room multiplayer state
   const [room, setRoom] = useState<RoomState | null>(null);
   const [localRoomMark, setLocalRoomMark] = useState<Mark>('X');
@@ -104,10 +109,9 @@ export function TurnTakeApp({
   // UI & Audio state
   const [muted, setMuted] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
-  const [leaderboardEntries, setLeaderboardEntries] = useState<
-    LeaderboardEntry[]
-  >([]);
-  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const leaderboardState=useLeaderboard(leaderboardOpen);
+  const leaderboardEntries=leaderboardState.entries;
+  const leaderboardLoading=leaderboardState.loading;
 
   const recordedFinishRef = useRef(false);
   const boardRef = useRef<BoardState>(createEmptyBoard());
@@ -142,55 +146,7 @@ export function TurnTakeApp({
     document.body.dataset.state = screen;
   }, [screen]);
 
-  const fetchLeaderboard = useCallback(async () => {
-    setLeaderboardLoading(true);
-    try {
-      const res = await fetch('/api/leaderboard');
-      if (res.ok) {
-        const data = await res.json();
-        setLeaderboardEntries(data.entries ?? []);
-      }
-    } catch {
-      // ignore offline transient error
-    } finally {
-      setLeaderboardLoading(false);
-    }
-  }, []);
-
-  const recordOutcomeToLeaderboard = useCallback(
-    async (matchWinner: Mark | 'draw', matchMode: GameMode, streak: number) => {
-      if (recordedFinishRef.current) return;
-      recordedFinishRef.current = true;
-      const myMark: Mark = opponentType === 'room' ? localRoomMark : 'X';
-      const outcome =
-        matchWinner === 'draw'
-          ? 'draw'
-          : matchWinner === myMark
-            ? 'win'
-            : 'loss';
-
-      try {
-        const res = await fetch('/api/leaderboard', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: playerName.trim() || 'Player X',
-            avatarId: playerAvatar,
-            outcome,
-            mode: matchMode,
-            streakAchieved: streak,
-          }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setLeaderboardEntries(data.entries ?? []);
-        }
-      } catch {
-        // non-blocking
-      }
-    },
-    [opponentType, localRoomMark, playerName, playerAvatar]
-  );
+  const fetchLeaderboard=leaderboardState.refresh;
 
   const resetMatchState = useCallback(
     (
@@ -248,54 +204,14 @@ export function TurnTakeApp({
     setScreen('playing');
   }, [lobbyOpponent, resetMatchState]);
 
-  // Initial leaderboard & optional invite link join
   useEffect(() => {
-    let active = true;
-    fetch('/api/leaderboard')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (active && data?.entries) {
-          setLeaderboardEntries(data.entries);
-        }
-      })
-      .catch(() => {});
-
-    if (initialRoomCode) {
-      const code = initialRoomCode.trim().toUpperCase();
-      fetch(`/api/rooms/${encodeURIComponent(code)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'join',
-          playerName: 'Player O',
-          avatarId: 'shield-face',
-        }),
-      })
-        .then(async (res) => {
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Could not join room.');
-          if (!active) return;
-          setRoom(data.room);
-          setLocalRoomMark('O');
-          setOpponentType('room');
-          setMode(data.room.mode);
-          setBoard(data.room.board);
-          setCurrentTurn(data.room.currentTurn);
-          setActiveMinigame(data.room.activeMinigame);
-          setClashOpen(data.room.mode === 'clash');
-          setScreen('playing');
-        })
-        .catch((err) => {
-          if (active) {
-            setRoomError(err instanceof Error ? err.message : 'Room unavailable.');
-          }
-        });
-    }
-
-    return () => {
-      active = false;
-    };
-  }, [initialRoomCode]);
+    if (!initialRoomCode) return;
+    let alive=true;
+    ensureGuest().then(()=>onlineGame.snapshot(initialRoomCode.toUpperCase())).then(data=>{
+      if(alive)setOnlineRoom(data.room);
+    }).catch(()=>{});
+    return ()=>{alive=false;};
+  },[initialRoomCode]);
 
   const applyLocalCellPlacement = useCallback(
     (index: number, mark: Mark) => {
@@ -326,7 +242,7 @@ export function TurnTakeApp({
         if (result.winner === 'draw') soundEngine.playDraw();
         else soundEngine.playVictory();
         setScreen('gameover');
-        recordOutcomeToLeaderboard(result.winner, mode, bestStreak);
+
       } else if (mode === 'classic') {
         setCurrentTurn(mark === 'X' ? 'O' : 'X');
       } else {
@@ -345,11 +261,10 @@ export function TurnTakeApp({
     },
     [
       mode,
-      bestStreak,
       pendingPlacements,
       clashRound,
       minigameSelection,
-      recordOutcomeToLeaderboard,
+
     ]
   );
 
@@ -419,99 +334,8 @@ export function TurnTakeApp({
     applyLocalCellPlacement,
   ]);
 
-  // Room polling synchronization
-  useEffect(() => {
-    if (opponentType !== 'room' || !room?.code) return;
-    if (screen !== 'waiting' && screen !== 'playing' && screen !== 'gameover') {
-      return;
-    }
-
-    const syncFromRoom = (nextRoom: RoomState) => {
-      setRoom(nextRoom);
-      setBoard(nextRoom.board);
-      setCurrentTurn(nextRoom.currentTurn);
-      setWinner(nextRoom.winner);
-      setWinningLine(nextRoom.winningLine);
-      setMoveCount(nextRoom.moveCount);
-      setSessionScores(nextRoom.scores);
-      setClashRound(nextRoom.clashRound);
-      setClashStreaks(nextRoom.clashStreaks);
-      setPendingPlacements(nextRoom.pendingPlacements);
-      setPendingPlacer(nextRoom.pendingPlacer);
-      setActiveMinigame(nextRoom.activeMinigame);
-      setClashXScore(nextRoom.clashSubmissions.X);
-      setClashOScore(nextRoom.clashSubmissions.O);
-      setLastClashSummary(nextRoom.lastClashSummary);
-
-      if (nextRoom.status === 'active' && screen === 'waiting') {
-        setScreen('playing');
-      }
-      if (nextRoom.status === 'finished' && nextRoom.winner) {
-        setClashOpen(false);
-        setScreen('gameover');
-        recordOutcomeToLeaderboard(nextRoom.winner, nextRoom.mode, bestStreak);
-      } else if (nextRoom.status === 'active' && screen === 'gameover') {
-        recordedFinishRef.current = false;
-        setScreen('playing');
-      }
-    };
-
-    const poll = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/rooms/${encodeURIComponent(room.code)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.room) syncFromRoom(data.room);
-        }
-      } catch {
-        // ignore transient poll errors
-      }
-    }, 900);
-
-    return () => clearInterval(poll);
-  }, [
-    opponentType,
-    room?.code,
-    screen,
-    bestStreak,
-    recordOutcomeToLeaderboard,
-  ]);
-
   const handleCellClick = async (index: number) => {
     if (winner !== null || board[index] !== null) return;
-
-    if (opponentType === 'room' && room) {
-      const res = await fetch(`/api/rooms/${encodeURIComponent(room.code)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'move',
-          mark: localRoomMark,
-          cellIndex: index,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.room) {
-          soundEngine.playPlaceMark(localRoomMark);
-          setRoom(data.room);
-          setBoard(data.room.board);
-          setCurrentTurn(data.room.currentTurn);
-          setWinner(data.room.winner);
-          setWinningLine(data.room.winningLine);
-          setMoveCount(data.room.moveCount);
-          setSessionScores(data.room.scores);
-          setPendingPlacements(data.room.pendingPlacements);
-          setPendingPlacer(data.room.pendingPlacer);
-          setClashRound(data.room.clashRound);
-          setActiveMinigame(data.room.activeMinigame);
-          if (data.room.winner) {
-            setScreen('gameover');
-          }
-        }
-      }
-      return;
-    }
 
     const markToPlace: Mark =
       mode === 'classic' ? currentTurn : pendingPlacer ?? 'X';
@@ -520,31 +344,6 @@ export function TurnTakeApp({
 
   const handleSubmitClashScore = useCallback(
     async (mark: Mark, score: number) => {
-      if (opponentType === 'room' && room) {
-        const res = await fetch(`/api/rooms/${encodeURIComponent(room.code)}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'clash_score',
-            mark,
-            score,
-          }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.room) {
-            setRoom(data.room);
-            setClashXScore(data.room.clashSubmissions.X);
-            setClashOScore(data.room.clashSubmissions.O);
-            setLastClashSummary(data.room.lastClashSummary);
-            setPendingPlacements(data.room.pendingPlacements);
-            setPendingPlacer(data.room.pendingPlacer);
-            setClashStreaks(data.room.clashStreaks);
-          }
-        }
-        return;
-      }
-
       if (opponentType === 'bot') {
         const botScore = generateBotClashScore(activeMinigame, botDifficulty);
         const remaining = getAvailableMoves(board).length;
@@ -613,7 +412,6 @@ export function TurnTakeApp({
     },
     [
       opponentType,
-      room,
       activeMinigame,
       botDifficulty,
       board,
@@ -635,98 +433,24 @@ export function TurnTakeApp({
 
   const handleRestartMatch = useCallback(
     async (keepScores = true) => {
-      if (opponentType === 'room' && room) {
-        const res = await fetch(`/api/rooms/${encodeURIComponent(room.code)}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'rematch' }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.room) {
-            recordedFinishRef.current = false;
-            setRoom(data.room);
-            setBoard(data.room.board);
-            setCurrentTurn(data.room.currentTurn);
-            setWinner(null);
-            setWinningLine(null);
-            setMoveCount(0);
-            setClashRound(1);
-            setClashStreaks({ X: 0, O: 0 });
-            setPendingPlacements(0);
-            setPendingPlacer(null);
-            setClashOpen(data.room.mode === 'clash');
-            setScreen('playing');
-          }
-        }
-        return;
-      }
-
       const nextStarter: Mark = startingMark === 'X' ? 'O' : 'X';
       resetMatchState(mode, opponentType, nextStarter, !keepScores);
       setScreen('playing');
     },
-    [opponentType, room, startingMark, mode, resetMatchState]
+    [opponentType, startingMark, mode, resetMatchState]
   );
 
-  const handleCreateRoom = async (roomMode: GameMode) => {
-    setRoomError(null);
-    setRoomBusy(true);
+  const enterOnline = async (action:()=>Promise<{room:OnlineRoom}>) => {
+    setRoomError(null);setRoomBusy(true);
     try {
-      const res = await fetch('/api/rooms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          playerName: playerName.trim() || 'Player X',
-          avatarId: playerAvatar,
-          mode: roomMode,
-          minigameSelection,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not create room.');
-      setRoom(data.room);
-      setLocalRoomMark('X');
-      setOpponentType('room');
-      setMode(roomMode);
-      setScreen('waiting');
-    } catch (err) {
-      setRoomError(err instanceof Error ? err.message : 'Unable to create room.');
-    } finally {
-      setRoomBusy(false);
-    }
+      await onlineGame.profile({name:playerName.trim(),avatarId:playerAvatar,publicLeaderboard});
+      const data=await action();setOnlineRoom(data.room);
+      window.history.replaceState(null,'',`/room/${data.room.code}`);
+    } catch(error){setRoomError(error instanceof Error?error.message:'Unable to connect.');}
+    finally{setRoomBusy(false);}
   };
-
-  const handleJoinRoom = async (code: string) => {
-    setRoomError(null);
-    setRoomBusy(true);
-    try {
-      const res = await fetch(`/api/rooms/${encodeURIComponent(code)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'join',
-          playerName: playerName.trim() || 'Player O',
-          avatarId: playerAvatar,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not join room.');
-      setRoom(data.room);
-      setLocalRoomMark('O');
-      setOpponentType('room');
-      setMode(data.room.mode);
-      setBoard(data.room.board);
-      setCurrentTurn(data.room.currentTurn);
-      setActiveMinigame(data.room.activeMinigame);
-      setClashOpen(data.room.mode === 'clash');
-      setScreen('playing');
-    } catch (err) {
-      setRoomError(err instanceof Error ? err.message : 'Unable to join room.');
-    } finally {
-      setRoomBusy(false);
-    }
-  };
+  const handleCreateRoom=(roomMode:GameMode)=>enterOnline(()=>onlineGame.create(roomMode));
+  const handleJoinRoom=(code:string)=>enterOnline(()=>onlineGame.join(code));
 
   const handleToggleMute = useCallback(() => {
     setMuted((prev) => {
@@ -778,6 +502,8 @@ export function TurnTakeApp({
     handleRestartMatch,
   ]);
 
+  if(onlineRoom)return <OnlineRoomView initialRoom={onlineRoom} muted={muted} onToggleMute={handleToggleMute} onExit={()=>{setOnlineRoom(null);window.history.replaceState(null,'','/');}} />;
+
   return (
     <MotionConfig reducedMotion="user">
       <AnimatePresence mode="wait">
@@ -790,6 +516,9 @@ export function TurnTakeApp({
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
           >
             <LobbyScreen
+              publicLeaderboard={publicLeaderboard}
+              onPublicLeaderboardChange={setPublicLeaderboard}
+              inviteCode={initialRoomCode}
               playerName={playerName}
               playerAvatar={playerAvatar}
               opponentType={lobbyOpponent}
@@ -937,6 +666,9 @@ export function TurnTakeApp({
             key="leaderboard-modal"
             entries={leaderboardEntries}
             loading={leaderboardLoading}
+            error={leaderboardState.error}
+            mode={leaderboardState.mode}
+            onModeChange={leaderboardState.setMode}
             onClose={() => setLeaderboardOpen(false)}
           />
         )}
