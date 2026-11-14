@@ -65,3 +65,23 @@ Non-secret operational record for the TURN//TAKE Vercel + Supabase rollout follo
   1. `hooks/use-online-room.ts`: Added targeted `countdownRefreshDelay` (`startAt` timer refresh) so clients transition promptly out of `countdown` instead of stalling up to 2.5s at `"Match starts in 0"`, and sent an immediate `heartbeat` during `boot()` so post-reload clients reset `last_seen_at` right away instead of waiting 5s for the first interval tick (preventing false `countdown_cancelled` on rematch).
   2. `e2e/local.pw.ts` & `e2e/online.pw.ts`: Skipped the unconfigured-error test cleanly when `.env.local` provides hosted Supabase config (`isOnlineConfigured()`), and widened the post-rematch board-reset assertion timeout (`10000ms`) for 3s countdown + cross-region RTT.
 - **Full Post-Fix Verification (`3ff4e7b`):** `bun test` (43 pass, 0 fail across 10 files), `bun run typecheck` (exit 0), `bun run lint` (0 errors, 20 warnings), `bun run build` (exit 0), `bun run test:hosted` (PASS Classic + Clash), and `RUN_HOSTED_E2E=1 bun run test:e2e` (20 passed, 2 unconfigured-only skipped, 0 failed; both `[desktop]` and `[mobile]` `e2e/online.pw.ts` passed).
+
+## Task 5: Restricted Vercel Staging Deployment
+
+- **Date:** 2026-11-15
+- **Branch / Commit:** `Famanias/deployment` (`origin` `https://github.com/Famanias/ttt-game.git`, code + `.vercel` ignore at `e088246`)
+- **Vercel Project:** `ttt-game` (`prj_7IQX0AeswNkxcxiwy6ihZ3rRhKGy`) on `team-e2117dad` (`famanias`, Hobby)
+  - Settings: Root `.`, Framework `Next.js`, Node.js `26.x` (CLI printed warning `Found invalid or discontinued Node.js Version: "26.x"` during deploy while `iad1` cloud build compiled Next.js `15.5.29` cleanly with `bun install --frozen-lockfile` + `bun run build`), Output `Next.js default`
+  - Initial default deploy `dpl_3GXCZD47ERet1xRQL2uHFG1Efi9B` (`https://ttt-game-sooty.vercel.app`) auto-assigned `target: production` with **no** `Production` environment variables configured (returns local-only fallback HTTP `200`; `vercel project pause` requires interactive confirmation)
+- **Restricted Staging Preview:**
+  - Deployment ID: `dpl_FoBuLNemSixij8c3tJi6PE4ED1w6`
+  - URL: `https://ttt-game-niz1r9i3m-team-e2117dad.vercel.app`
+  - `Preview` env vars set: `NEXT_PUBLIC_SUPABASE_URL` (`https://ffsvimzxnxqbogzvuupi.supabase.co`), `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` only (zero secrets)
+  - Deployment Protection: `["vercel_authentication"]` (`ssoProtection.deploymentType = "all_except_custom_domains"`; unauthenticated HTTP returns `302` to `vercel.com/sso-api`, uninvited browser redirects to `vercel.com/login`)
+- **Staging Supabase Auth (`ffsvimzxnxqbogzvuupi`):**
+  - `site_url`: `https://ttt-game-niz1r9i3m-team-e2117dad.vercel.app`
+  - `uri_allow_list`: `https://ttt-game-niz1r9i3m-team-e2117dad.vercel.app/**,http://localhost:3101/**,http://localhost:3000/**`
+- **Live Two-Device Staging Verification (Desktop Chromium + Mobile `Pixel 7` Chromium):**
+  - `verify-staging-live.ts` (exit `0`): SSO gate verified (`blocked=true`), Classic room create/join/win/rematch/draw (`Moves 9`)/rematch, disconnect (`o.close()`) -> `"Paused for reconnect"` -> reconnect resume, opt-in Leaderboard (`StageA-h1wqpo` visible), offline local 2P win (`ctxMobile.setOffline(true)`), Clash R1 `Perfect Timing` + 3x fast reload restart (`activeRoundIndex=4`), R2 `Flash Memory` -> 2-Win Streak Bonus -> 15s claim deadline auto-place (`xCount=3`), R3 `Target Rush` + 0-0 tie -> Sudden Death `Perfect Timing` (`Clash Round 7: Perfect Timing`), and 4th reload rejected (`status=400`, `{"error":{"code":"RESUME_LIMIT"}}`, UI `[role="status"]` `"This match has reached its reload restart limit. Return to local games if you cannot finish the current attempt."`).
+  - `verify-staging-slow-bg.ts` (exit `0`): `TU5JWY` passed under emulated `600ms` latency / `50KB/s` network + background-tab throttling, capturing `REALTIME_WS_TOTAL_X=15` and `BROADCAST_COUNT=10` decoded binary Phoenix v2 WebSocket frames (`realtime:room:... room_updated` + `presence_state`/`presence_diff`).
+- **Known Product Behavior Confirmed:** `longest_streak` tracks the two-win Clash bonus-counter peak (`<= 2`), matching `docs/IMPLEMENTATION_STATUS.md`.
