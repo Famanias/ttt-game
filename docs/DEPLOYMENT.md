@@ -2,6 +2,8 @@
 
 No remote project or deployment was configured during implementation. The checked-in code/build/tests are local evidence. Complete these steps in a **test project** before publishing or claiming live multiplayer.
 
+For the ordered launch tasks, evidence gates, public CAPTCHA work and rollback procedure, follow the [deployment execution plan](superpowers/plans/2026-11-15-vercel-supabase-deployment.md).
+
 ## 1. Tooling and local database
 
 Tested: Bun 1.4.4, Node 26.7.0, Next.js 15.5.29, React 19.3.1. `packageManager`, `engines`, `.nvmrc` and `bun.lock` record the tool/dependency boundary. Supabase CLI was available (2.119.0); Docker Desktop's Linux engine was not running, so native local Supabase/advisors were not executed.
@@ -24,7 +26,7 @@ For a **new disposable local database**, apply migrations using `supabase db res
 5. Enable Supabase Cron/pg_cron and run the reviewed `supabase/cron.sql` as the database owner. It schedules owner-only `private.sweep_deadlines()` every five seconds. Check job history and verify it runs successfully with all browsers closed. **Without this job**, deadlines reconcile on reads/commands only; unattended games remain pending until the next request.
 6. Set the project's Site URL and allowed development/production URLs. No social OAuth callback is required for anonymous auth. Use HTTPS in production.
 
-Anonymous-auth CAPTCHA/Turnstile integration is a deployment-exposure decision. The current lobby does not collect a CAPTCHA token. If you enable CAPTCHA in Auth, add/test the supported token UI before expecting new guests to sign in; errors are shown honestly. Do not disable rate limits to work around sign-in errors. Use private assessment access until public abuse controls are validated.
+Public anonymous-auth CAPTCHA uses Cloudflare Turnstile via `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, loaded on demand via `components/TurnstileChallenge.tsx` only when a new visitor needs anonymous sign-in for online play and passed to `supabase.auth.signInAnonymously({ options: { captchaToken } })`. Configure the matching Turnstile secret **only** in Supabase Auth (never in `NEXT_PUBLIC_*` or source control), register only intended domains, and keep staging/test keys separate from production keys. Enable Supabase Auth CAPTCHA protection only after deploying the client token flow to that environment; `bun run test:hosted` targets the no-CAPTCHA staging project because its script signs in without a widget token. Existing guests and local 2P, Bot, and Clash modes never wait on CAPTCHA. Do not disable rate limits to work around sign-in errors.
 
 ## 3. Environment
 

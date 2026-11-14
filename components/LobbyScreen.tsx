@@ -43,6 +43,7 @@ interface LobbyScreenProps {
   muted: boolean;
   roomError: string | null;
   roomBusy: boolean;
+  captcha?: React.ReactNode;
   onPlayerNameChange: (name: string) => void;
   onPlayerAvatarChange: (avatar: AvatarId) => void;
   onOpponentTypeChange: (type: Exclude<OpponentType, 'room'>) => void;
@@ -147,6 +148,7 @@ export function LobbyScreen({
   muted,
   roomError,
   roomBusy,
+  captcha,
   onPlayerNameChange,
   onPlayerAvatarChange,
   onOpponentTypeChange,
@@ -762,6 +764,7 @@ export function LobbyScreen({
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
+              {captcha}
               {roomError && (
                 <p role="alert" className="text-sm text-[#FF795E]">
                   {roomError}

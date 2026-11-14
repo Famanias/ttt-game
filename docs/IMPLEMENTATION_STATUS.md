@@ -38,5 +38,5 @@ Deferred minor: `longest_streak` currently measures the two-win bonus-counter pe
 2. Apply reviewed migrations and run Supabase advisors; require private Realtime, then verify allowed/denied subscriptions on the actual service.
 3. Enable/observe Cron. Without it, reconciliation waits for the next read/command when all clients disappear.
 4. Run `bun run test:hosted`, opt-in hosted Playwright, two-device Clash, reload/background throttling and disconnect/slow-network smoke. PGlite does not prove true multi-connection scheduling or hosted service behavior.
-5. Review public anonymous-auth abuse exposure/CAPTCHA and guest/history retention. Current code enforces per-guest limits; creation limits are configured in Supabase, and a CAPTCHA token UI is not currently supplied.
+5. Public anonymous-auth CAPTCHA uses on-demand Cloudflare Turnstile (`components/TurnstileChallenge.tsx` paired with `NEXT_PUBLIC_TURNSTILE_SITE_KEY`) during new guest sign-in (`ensureGuest`); existing guests and local 2P/Bot/Clash modes skip CAPTCHA. Configure the matching Turnstile secret only in Supabase Auth after deploying the client token flow, and review guest/history retention with the project owner.
 6. Authorize and perform Vercel deployment, then verify the real public URL. No deployment has been attempted.
