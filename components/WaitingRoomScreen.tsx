@@ -58,7 +58,10 @@ export function WaitingRoomScreen({
         </button>
       </header>
 
-      <main className="relative z-10 max-w-md w-full mx-auto my-auto rounded-3xl bg-[#151C2A]/95 border border-[#65737C]/35 p-6 sm:p-8 text-center shadow-[0_24px_70px_rgba(0,0,0,0.65)]">
+      <main
+        suppressHydrationWarning
+        className="relative z-10 max-w-md w-full mx-auto my-auto rounded-3xl bg-[#151C2A]/95 border border-[#65737C]/35 p-6 sm:p-8 text-center shadow-[0_24px_70px_rgba(0,0,0,0.65)]"
+      >
         <img
           src={TURN_TAKE_ASSETS.inviteConnection}
           alt="Multiplayer signal arc"

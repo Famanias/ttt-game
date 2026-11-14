@@ -98,7 +98,10 @@ export function LobbyScreen({
       </div>
 
       {/* Main Content */}
-      <main className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex flex-col gap-4">
+      <main
+        suppressHydrationWarning
+        className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex flex-col gap-4"
+      >
         {/* Top Utility Strip */}
         <div className="flex items-center justify-between gap-4">
           <TurnTakeLogo size="lg" />
@@ -134,6 +137,7 @@ export function LobbyScreen({
 
         {/* Player Identity Bar */}
         <section
+          suppressHydrationWarning
           aria-label="Player Profile"
           className="rounded-2xl bg-[#141A26]/90 border border-[#65737C]/30 px-4 py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3"
         >
@@ -151,6 +155,12 @@ export function LobbyScreen({
               value={playerName}
               onChange={(e) => onPlayerNameChange(e.target.value)}
               placeholder="Player X"
+              autoComplete="off"
+              data-1p-ignore
+              data-lpignore="true"
+              data-bwignore="true"
+              data-protonpass-ignore="true"
+              suppressHydrationWarning
               className="w-full sm:w-48 px-3.5 py-2 rounded-xl bg-[#10141D] border border-[#65737C]/35 text-sm font-medium text-[#F4F4F0] placeholder:text-[#65737C] focus:outline-none focus:border-[#43DDE6]"
             />
           </div>
@@ -421,7 +431,13 @@ export function LobbyScreen({
               </div>
             </div>
 
-            <form onSubmit={handleJoinSubmit} className="space-y-2.5">
+            <form
+              onSubmit={handleJoinSubmit}
+              autoComplete="off"
+              data-protonpass-ignore="true"
+              suppressHydrationWarning
+              className="space-y-2.5"
+            >
               <label
                 htmlFor="join-room-code"
                 className="block text-xs font-medium text-[#65737C]"
@@ -436,6 +452,12 @@ export function LobbyScreen({
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                   placeholder="Enter code (e.g. 7K9M2P)"
+                  autoComplete="off"
+                  data-1p-ignore
+                  data-lpignore="true"
+                  data-bwignore="true"
+                  data-protonpass-ignore="true"
+                  suppressHydrationWarning
                   className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl bg-[#10141D] border border-[#65737C]/35 font-mono text-sm uppercase tracking-wider text-[#F4F4F0] placeholder:text-[#65737C] placeholder:normal-case placeholder:tracking-normal focus:outline-none focus:border-[#8B7CFF]"
                 />
                 <button

@@ -216,7 +216,10 @@ export function ArenaScreen({
       </header>
 
       {/* Main Arena Stage */}
-      <main className="relative z-10 flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-4 flex flex-col justify-center gap-5">
+      <main
+        suppressHydrationWarning
+        className="relative z-10 flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-4 flex flex-col justify-center gap-5"
+      >
         {/* Turn / Clash Status Banner */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-[#151C2A]/90 border border-[#65737C]/30">
