@@ -46,3 +46,9 @@ Non-secret operational record for the TURN//TAKE Vercel + Supabase rollout follo
 
 - **Staging rollback target:** Unavailable (no staging deployment created yet).
 - **Production rollback target:** Unavailable (no production deployment created yet).
+
+## Task 2: Staging Environment Provisioning
+- **Supabase Organization:** `Famanias's Org` (`mlzjigmootxtpmceruaa`, Free plan)
+- **Staging Supabase Project:** `turn-take-staging` (`ffsvimzxnxqbogzvuupi`, `us-east-1`, `ACTIVE_HEALTHY`)
+- **Local Env:** Created `.env.local` with staging `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (verified gitignored via `.gitignore:6:.env*`)
+- **Target Vercel Team:** `famanias` (`team-e2117dad`, Hobby plan)
