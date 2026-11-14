@@ -32,6 +32,9 @@ import type {
 import { TurnTakeLogo } from './TurnTakeLogo';
 
 interface LobbyScreenProps {
+  publicLeaderboard: boolean;
+  onPublicLeaderboardChange: (value:boolean)=>void;
+  inviteCode?: string|null;
   playerName: string;
   playerAvatar: AvatarId;
   opponentType: Exclude<OpponentType, 'room'>;
@@ -135,6 +138,7 @@ function MinigameHoverBadge({
 }
 
 export function LobbyScreen({
+  publicLeaderboard,onPublicLeaderboardChange,inviteCode,
   playerName,
   playerAvatar,
   opponentType,
@@ -693,6 +697,11 @@ export function LobbyScreen({
                 join an active match below.
               </p>
 
+              <label className="flex items-center gap-2 min-h-[44px] text-xs text-[#CBD5E1]">
+                <input type="checkbox" className="accent-[#43DDE6]" checked={publicLeaderboard} onChange={e=>onPublicLeaderboardChange(e.target.checked)}/>
+                Show my name and avatar in public casual rankings
+              </label>
+              {inviteCode&&<button disabled={roomBusy} onClick={()=>onJoinRoom(inviteCode)} className="min-h-[44px] text-sm text-[#43DDE6] underline">Join invite {inviteCode}</button>}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"

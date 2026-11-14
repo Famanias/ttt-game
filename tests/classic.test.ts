@@ -30,9 +30,9 @@ test('Classic starts only after both ready and rejects early, wrong, occupied, s
     assert.equal((await request(db,USERS[1],'move',r.code,command({expectedVersion:r.match.version,cellIndex:5}))).error.code,'WRONG_PHASE');
     assert.equal((await db.query<{count:number}>('select count(*)::int from private.moves')).rows[0].count,5);
     const oldId=r.match.id;
-    r=(await request(db,USERS[0],'rematch',r.code,command({expectedVersion:r.match.version,accepted:true}))).room;
+    r=(await request(db,USERS[0],'rematch',r.code,command({expectedVersion:r.version,accepted:true}))).room;
     assert.equal(r.match.id,oldId);
-    r=(await request(db,USERS[1],'rematch',r.code,command({expectedVersion:r.match.version,accepted:true}))).room;
+    r=(await request(db,USERS[1],'rematch',r.code,command({expectedVersion:r.version,accepted:true}))).room;
     assert.notEqual(r.match.id,oldId);assert.deepEqual(r.match.board,Array(9).fill(null));assert.equal(r.match.turn,'X');
     assert.equal((await db.query<{outcome:string}>('select outcome from private.matches where id=$1',[oldId])).rows[0].outcome,'X');
   }finally{await db.close();}

@@ -18,7 +18,6 @@ import type {
   BotDifficulty,
   GameMode,
   GameScreen,
-  LeaderboardEntry,
   Mark,
   MinigameId,
   MinigameSelection,
@@ -35,6 +34,7 @@ import { OutcomeModal } from './OutcomeModal';
 import { WaitingRoomScreen } from './WaitingRoomScreen';
 import { OnlineRoomView } from './OnlineRoomView';
 import { onlineGame, ensureGuest } from '@/lib/services/online-game';
+import { useLeaderboard } from '@/hooks/use-leaderboard';
 import type { OnlineRoom } from '@/lib/online/contracts';
 
 interface TurnTakeAppProps {
@@ -109,10 +109,9 @@ export function TurnTakeApp({
   // UI & Audio state
   const [muted, setMuted] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
-  const [leaderboardEntries, setLeaderboardEntries] = useState<
-    LeaderboardEntry[]
-  >([]);
-  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const leaderboardState=useLeaderboard(leaderboardOpen);
+  const leaderboardEntries=leaderboardState.entries;
+  const leaderboardLoading=leaderboardState.loading;
 
   const recordedFinishRef = useRef(false);
   const boardRef = useRef<BoardState>(createEmptyBoard());
@@ -147,23 +146,7 @@ export function TurnTakeApp({
     document.body.dataset.state = screen;
   }, [screen]);
 
-  const fetchLeaderboard = useCallback(async () => {
-    setLeaderboardLoading(true);
-    try {
-      const res = await fetch('/api/leaderboard');
-      if (res.ok) {
-        const data = await res.json();
-        setLeaderboardEntries(data.entries ?? []);
-      }
-    } catch {
-      // ignore offline transient error
-    } finally {
-      setLeaderboardLoading(false);
-    }
-  }, []);
-
-  // Local and bot results never write global online rankings.
-  const recordOutcomeToLeaderboard = useCallback(async (_winner: Mark | 'draw', _mode: GameMode, _streak: number) => {}, []);
+  const fetchLeaderboard=leaderboardState.refresh;
 
   const resetMatchState = useCallback(
     (
@@ -259,7 +242,7 @@ export function TurnTakeApp({
         if (result.winner === 'draw') soundEngine.playDraw();
         else soundEngine.playVictory();
         setScreen('gameover');
-        recordOutcomeToLeaderboard(result.winner, mode, bestStreak);
+
       } else if (mode === 'classic') {
         setCurrentTurn(mark === 'X' ? 'O' : 'X');
       } else {
@@ -278,11 +261,10 @@ export function TurnTakeApp({
     },
     [
       mode,
-      bestStreak,
       pendingPlacements,
       clashRound,
       minigameSelection,
-      recordOutcomeToLeaderboard,
+
     ]
   );
 
@@ -430,7 +412,6 @@ export function TurnTakeApp({
     },
     [
       opponentType,
-      room,
       activeMinigame,
       botDifficulty,
       board,
@@ -456,7 +437,7 @@ export function TurnTakeApp({
       resetMatchState(mode, opponentType, nextStarter, !keepScores);
       setScreen('playing');
     },
-    [opponentType, room, startingMark, mode, resetMatchState]
+    [opponentType, startingMark, mode, resetMatchState]
   );
 
   const enterOnline = async (action:()=>Promise<{room:OnlineRoom}>) => {
@@ -525,10 +506,6 @@ export function TurnTakeApp({
 
   return (
     <MotionConfig reducedMotion="user">
-      {screen==='title' && <div className="relative z-20 bg-[#151B28] text-[#CBD5E1] px-4 py-2 text-sm text-center">
-        <label><input type="checkbox" checked={publicLeaderboard} onChange={e=>setPublicLeaderboard(e.target.checked)} /> Show my name and avatar in public casual rankings</label>
-        {initialRoomCode && <button className="ml-4 text-[#43DDE6] underline" disabled={roomBusy} onClick={()=>handleJoinRoom(initialRoomCode)}>Join invite {initialRoomCode}</button>}
-      </div>}
       <AnimatePresence mode="wait">
         {screen === 'title' && (
           <motion.div
@@ -539,6 +516,9 @@ export function TurnTakeApp({
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
           >
             <LobbyScreen
+              publicLeaderboard={publicLeaderboard}
+              onPublicLeaderboardChange={setPublicLeaderboard}
+              inviteCode={initialRoomCode}
               playerName={playerName}
               playerAvatar={playerAvatar}
               opponentType={lobbyOpponent}
@@ -686,6 +666,9 @@ export function TurnTakeApp({
             key="leaderboard-modal"
             entries={leaderboardEntries}
             loading={leaderboardLoading}
+            error={leaderboardState.error}
+            mode={leaderboardState.mode}
+            onModeChange={leaderboardState.setMode}
             onClose={() => setLeaderboardOpen(false)}
           />
         )}

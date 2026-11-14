@@ -1,27 +1,10 @@
 import type { Metadata } from 'next';
-import { Outfit, DM_Sans, JetBrains_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 
-const outfit = Outfit({
-  subsets: ['latin'],
-  weight: ['500', '600', '700', '800'],
-  variable: '--font-outfit',
-  display: 'swap',
-});
-
-const dmSans = DM_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-dm-sans',
-  display: 'swap',
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  weight: ['500', '600', '700'],
-  variable: '--font-jetbrains-mono',
-  display: 'swap',
-});
+const outfit=localFont({src:'../public/fonts/outfit.ttf',weight:'500 800',variable:'--font-outfit',display:'swap'});
+const dmSans=localFont({src:'../public/fonts/dm-sans.ttf',weight:'400 700',variable:'--font-dm-sans',display:'swap'});
+const jetbrainsMono=localFont({src:'../public/fonts/jetbrains-mono.ttf',weight:'500 700',variable:'--font-jetbrains-mono',display:'swap'});
 
 export const metadata: Metadata = {
   title: 'TURN//TAKE — Competitive 2D Arcade Tic-Tac-Toe',

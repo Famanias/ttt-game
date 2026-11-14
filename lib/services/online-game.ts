@@ -25,6 +25,6 @@ export const onlineGame={
   async join(code:string){return gameFetch<{room:OnlineRoom}>(`/api/rooms/${encodeURIComponent(code.trim().toUpperCase())}`,{action:'join',clientCommandId:crypto.randomUUID()});},
   snapshot(code:string){return gameFetch<{room:OnlineRoom}>(`/api/rooms/${code}`);},
   command(room:OnlineRoom,action:Mutation,payload:Record<string,unknown>={}){
-    return gameFetch<{room:OnlineRoom}>(`/api/rooms/${room.code}`,{action,clientCommandId:crypto.randomUUID(),...(['heartbeat','join'].includes(action)?{}:{expectedVersion:room.match?.version??room.version}),...payload});
+    return gameFetch<{room:OnlineRoom}>(`/api/rooms/${room.code}`,{action,clientCommandId:crypto.randomUUID(),...(['heartbeat','join'].includes(action)?{}:{expectedVersion:action==='rematch'?room.version:room.match?.version??room.version}),...payload});
   },
 };

@@ -8,6 +8,7 @@ import type { GameMode, Mark, PlayerProfile } from '@/lib/game/types';
 
 interface OutcomeModalProps {
   playAgainLabel?: string;
+  outcomeLabel?: string;
   winner: Mark | 'draw';
   mode: GameMode;
   playerX: PlayerProfile;
@@ -22,6 +23,7 @@ interface OutcomeModalProps {
 
 export function OutcomeModal({
   playAgainLabel,
+  outcomeLabel,
   winner,
   mode,
   playerX,
@@ -85,7 +87,7 @@ export function OutcomeModal({
           data-testid="outcome-heading"
           className="font-display text-3xl font-extrabold mt-1 text-[#F4F4F0]"
         >
-          {isDraw ? (
+          {outcomeLabel ?? (isDraw ? (
             'Balanced Draw'
           ) : (
             <>
@@ -96,7 +98,7 @@ export function OutcomeModal({
               </span>{' '}
               Wins
             </>
-          )}
+          ))}
         </h2>
 
         <div className="grid grid-cols-3 gap-2.5 my-5">

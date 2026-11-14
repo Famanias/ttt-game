@@ -27,14 +27,14 @@ export interface OnlineRound {
 export interface OnlineMatch {
   id:string; version:number; phase:'countdown'|'classic_turn'|'round'|'claim'|'paused'|'finished';
   board:BoardState; turn:Mark; winner:Mark|'draw'|'abandoned'|null; winningLine:number[]|null;
-  moveCount:number; streaks:{X:number;O:number}; pendingClaims:number; claimant:Mark|null;
+  moveCount:number; bestStreaks:{X:number;O:number}; streaks:{X:number;O:number}; pendingClaims:number; claimant:Mark|null;
   round:OnlineRound|null; startAt:string; deadlineAt:string|null; reconnectDeadline:string|null; reason:string|null;
   rematchVotes: Array<{userId:string;accepted:boolean}>;
 }
 export interface OnlineRoom {
   id:string; code:string; mode:GameMode; status:'waiting'|'active'|'finished'|'closed'; version:number; myMark:Mark;
-  members:Array<{userId:string;slot:Mark;ready:boolean;lastSeenAt:string;profile:PlayerProfile}>;
-  match:OnlineMatch|null; serverNow:string; expiresAt:string;
+  members:Array<{userId:string;slot:Mark;ready:boolean;status:'active'|'left';lastSeenAt:string;profile:PlayerProfile}>;
+  match:OnlineMatch|null; scores:{X:number;O:number;draws:number}; serverNow:string; expiresAt:string;
 }
 
 export function adaptRoom(dto: OnlineRoom): RoomState {
@@ -43,7 +43,7 @@ export function adaptRoom(dto: OnlineRoom): RoomState {
     board:m?.board ?? Array(9).fill(null), currentTurn:m?.turn ?? 'X', startingMark:'X',
     winner:m?.winner==='abandoned'?'draw':m?.winner ?? null, winningLine:m?.winningLine ?? null,
     players:{X:dto.members.find(p=>p.slot==='X')?.profile ?? {name:'Host',avatarId:'orb-bot'},O:dto.members.find(p=>p.slot==='O')?.profile ?? null},
-    scores:{X:0,O:0,draws:0}, moveCount:m?.moveCount ?? 0,clashRound:m?.round?.index ?? 1,
+    scores:dto.scores??{X:0,O:0,draws:0}, moveCount:m?.moveCount ?? 0,clashRound:m?.round?.index ?? 1,
     clashStreaks:m?.streaks ?? {X:0,O:0},pendingPlacements:m?.pendingClaims ?? 0,pendingPlacer:m?.claimant ?? null,
     activeMinigame:m?.round?.type ?? 'perfect-timing',clashSubmissions:{X:m?.round?.submitted.X?0:null,O:m?.round?.submitted.O?0:null},
     lastClashSummary:null,updatedAt:Date.parse(dto.serverNow) };

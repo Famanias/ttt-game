@@ -44,6 +44,7 @@ test('shared rounds hide submissions, authorize one claim then two-win bonus and
     const other=(await request(db,USERS[1],'snapshot',r.code)).room;
     assert.deepEqual(other.match.round,r.match.round);assert.equal(r.match.pendingClaims,0);
     r=await winRound(db,r);assert.equal(r.match.pendingClaims,1);assert.equal(r.match.claimant,'X');
+    assert.equal((await db.query<{rounds:number}>('select sum(rounds_played)::int rounds from private.player_stats')).rows[0].rounds,0);
     assert.equal((await request(db,USERS[1],'move',r.code,command({expectedVersion:r.match.version,cellIndex:0}))).error.code,'NOT_YOUR_TURN');
     r=(await request(db,USERS[0],'move',r.code,command({expectedVersion:r.match.version,cellIndex:0}))).room;
     assert.equal(r.match.round.type,'flash-memory');
@@ -52,6 +53,7 @@ test('shared rounds hide submissions, authorize one claim then two-win bonus and
     assert.equal(r.match.pendingClaims,1);
     r=(await request(db,USERS[0],'move',r.code,command({expectedVersion:r.match.version,cellIndex:2}))).room;
     assert.equal(r.match.winner,'X');assert.equal(r.match.pendingClaims,0);
+    assert.equal((await db.query<{rounds_won:number}>('select rounds_won from private.player_stats where user_id=$1',[USERS[0]])).rows[0].rounds_won,2);
   }finally{await db.close();}
 });
 

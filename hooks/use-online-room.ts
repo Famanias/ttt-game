@@ -10,7 +10,7 @@ export function useOnlineRoom(initial:OnlineRoom) {
   const [busy,setBusy]=useState(false);
   const [connected,setConnected]=useState(false);
   const [present,setPresent]=useState<string[]>([]);
-  const [offset,setOffset]=useState(Date.parse(initial.serverNow)-Date.now());
+  const [offset,setOffset]=useState(()=>Date.parse(initial.serverNow)-Date.now());
   const latest=useRef(initial);const active=useRef(true);const sending=useRef(false);
   const accept=useCallback((next:OnlineRoom,sentAt:number)=>{
     if(!active.current || next.id!==latest.current.id || next.version<latest.current.version)return;
@@ -29,22 +29,23 @@ export function useOnlineRoom(initial:OnlineRoom) {
     finally{sending.current=false;if(active.current)setBusy(false);}
   },[accept,refresh]);
   useEffect(()=>{
+    let disposed=false;
     active.current=true;let channel:ReturnType<ReturnType<typeof browserSupabase>['channel']>|undefined;
     let unsubscribe:(()=>void)|undefined;
     const client=browserSupabase();
     const boot=async()=>{
       await ensureGuest();await refresh();
-      if(!active.current)return;
+      if(disposed||!active.current)return;
       const {data:{session}}=await client.auth.getSession();
       await client.realtime.setAuth(session?.access_token);
-      if(!active.current)return;
+      if(disposed||!active.current)return;
       const me=latest.current.members.find(member=>member.slot===latest.current.myMark)!;
       channel=client.channel(`room:${initial.id}`,{config:{private:true,presence:{key:me.userId}}});
       channel.on('broadcast',{event:'room_updated'},()=>{void refresh();})
         .on('presence',{event:'sync'},()=>{
           if(active.current&&channel)setPresent(Object.keys(channel.presenceState()).filter(id=>latest.current.members.some(member=>member.userId===id)));
         }).subscribe(status=>{
-          if(!active.current)return;
+          if(disposed||!active.current)return;
           setConnected(status==='SUBSCRIBED');
           if(status==='SUBSCRIBED'){void channel?.track({online:true});void refresh();}
         });
@@ -58,7 +59,7 @@ export function useOnlineRoom(initial:OnlineRoom) {
     },5000);
     const poll=setInterval(()=>void refresh(),2500);
     const focus=()=>{void refresh();};window.addEventListener('focus',focus);
-    return ()=>{active.current=false;clearInterval(heartbeat);clearInterval(poll);window.removeEventListener('focus',focus);unsubscribe?.();if(channel)void client.removeChannel(channel);};
+    return ()=>{disposed=true;active.current=false;clearInterval(heartbeat);clearInterval(poll);window.removeEventListener('focus',focus);unsubscribe?.();if(channel)void client.removeChannel(channel);};
   },[initial.code,initial.id,accept,refresh]);
   return {room,error,busy,connected,present,offset,send,refresh};
 }
