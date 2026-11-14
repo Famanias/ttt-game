@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'motion/react';
-import { RotateCcw, Trophy, ArrowLeft } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Trophy } from 'lucide-react';
 import { TURN_TAKE_ASSETS } from '@/lib/game/assets';
 import type { GameMode, Mark, PlayerProfile } from '@/lib/game/types';
 
@@ -35,28 +35,47 @@ export function OutcomeModal({
   const winnerProfile = winner === 'X' ? playerX : playerO;
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.16 }}
       role="dialog"
       aria-modal="true"
       aria-label={isDraw ? 'Match Draw' : `${winnerProfile.name} Wins`}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B0E15]/85"
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.94 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-md rounded-3xl bg-[#151B28] border border-[#65737C]/35 p-6 sm:p-7 text-center shadow-[0_28px_80px_rgba(0,0,0,0.7)]"
+        initial={{ opacity: 0, scale: 0.92, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+        className="relative w-full max-w-md rounded-3xl bg-[#151B28] border border-[#65737C]/40 p-6 sm:p-7 text-center shadow-[0_28px_80px_rgba(0,0,0,0.72)] overflow-hidden"
       >
-        <div className="flex justify-center mb-4">
-          <img
-            src={isDraw ? TURN_TAKE_ASSETS.drawEmblem : TURN_TAKE_ASSETS.victoryBurst}
+        <div className="relative flex justify-center mb-4">
+          {!isDraw && (
+            <img
+              src={TURN_TAKE_ASSETS.ornaments.clashDiamond}
+              alt=""
+              referrerPolicy="no-referrer"
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-36 h-36 object-contain opacity-20"
+            />
+          )}
+          <motion.img
+            initial={{ scale: 0.72, rotate: -8 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            src={
+              isDraw ? TURN_TAKE_ASSETS.drawEmblem : TURN_TAKE_ASSETS.victoryBurst
+            }
             alt={isDraw ? 'Draw emblem' : 'Victory burst emblem'}
             referrerPolicy="no-referrer"
-            className="w-28 h-28 object-contain"
+            className="relative z-10 w-28 h-28 object-contain"
           />
         </div>
 
-        <p className="text-xs font-medium text-[#65737C]">
+        <p className="text-xs sm:text-sm font-medium text-[#94A3B8]">
           {mode === 'classic' ? 'Classic Mode' : 'Clash Mode'} · Match Complete
         </p>
 
@@ -79,22 +98,22 @@ export function OutcomeModal({
         </h2>
 
         <div className="grid grid-cols-3 gap-2.5 my-5">
-          <div className="p-3 rounded-2xl bg-[#10141D] border border-[#65737C]/20">
-            <p className="text-[11px] text-[#65737C]">Moves</p>
+          <div className="p-3 rounded-2xl bg-[#10141D] border border-[#65737C]/25">
+            <p className="text-xs text-[#94A3B8]">Moves</p>
             <p className="font-mono text-lg font-bold text-[#F4F4F0] mt-0.5">
               {moveCount}
             </p>
           </div>
-          <div className="p-3 rounded-2xl bg-[#10141D] border border-[#65737C]/20">
-            <p className="text-[11px] text-[#65737C]">Series X / O</p>
+          <div className="p-3 rounded-2xl bg-[#10141D] border border-[#65737C]/25">
+            <p className="text-xs text-[#94A3B8]">Series X / O</p>
             <p className="font-mono text-lg font-bold text-[#F4F4F0] mt-0.5">
               <span className="text-[#43DDE6]">{sessionScores.X}</span>
-              <span className="text-[#65737C] mx-1">-</span>
+              <span className="text-[#94A3B8] mx-1">-</span>
               <span className="text-[#FF795E]">{sessionScores.O}</span>
             </p>
           </div>
-          <div className="p-3 rounded-2xl bg-[#10141D] border border-[#65737C]/20">
-            <p className="text-[11px] text-[#65737C]">Best Streak</p>
+          <div className="p-3 rounded-2xl bg-[#10141D] border border-[#65737C]/25">
+            <p className="text-xs text-[#94A3B8]">Best Streak</p>
             <p className="font-mono text-lg font-bold text-[#FFDA79] mt-0.5">
               {bestStreak}
             </p>
@@ -106,7 +125,7 @@ export function OutcomeModal({
             type="button"
             data-start="true"
             onClick={onPlayAgain}
-            className="w-full inline-flex items-center justify-center gap-2 py-3 px-5 rounded-xl font-semibold text-sm bg-[#43DDE6] text-[#10141D] hover:bg-[#62e6ed] transition-colors cursor-pointer whitespace-nowrap"
+            className="btn-arcade-sheen w-full inline-flex items-center justify-center gap-2 min-h-[48px] py-3 px-5 rounded-xl font-semibold text-sm sm:text-base bg-[#43DDE6] text-[#10141D] hover:bg-[#62e6ed] active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4F4F0]"
           >
             <RotateCcw className="w-4 h-4" />
             Play Again
@@ -116,22 +135,22 @@ export function OutcomeModal({
             <button
               type="button"
               onClick={onOpenLeaderboard}
-              className="inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl font-medium text-xs bg-[#10141D] text-[#F4F4F0] border border-[#65737C]/30 hover:border-[#F4F4F0]/50 transition-colors cursor-pointer whitespace-nowrap"
+              className="inline-flex items-center justify-center gap-1.5 min-h-[44px] py-2.5 px-4 rounded-xl font-medium text-xs sm:text-sm bg-[#10141D] text-[#F4F4F0] border border-[#65737C]/35 hover:border-[#FFDA79]/60 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFDA79]"
             >
-              <Trophy className="w-3.5 h-3.5 text-[#FFDA79]" />
+              <Trophy className="w-4 h-4 text-[#FFDA79]" />
               Standings
             </button>
             <button
               type="button"
               onClick={onBackToLobby}
-              className="inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl font-medium text-xs bg-[#10141D] text-[#F4F4F0] border border-[#65737C]/30 hover:border-[#F4F4F0]/50 transition-colors cursor-pointer whitespace-nowrap"
+              className="inline-flex items-center justify-center gap-1.5 min-h-[44px] py-2.5 px-4 rounded-xl font-medium text-xs sm:text-sm bg-[#10141D] text-[#F4F4F0] border border-[#65737C]/35 hover:border-[#F4F4F0]/55 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#43DDE6]"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
+              <ArrowLeft className="w-4 h-4" />
               Lobby
             </button>
           </div>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }

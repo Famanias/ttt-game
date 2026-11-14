@@ -8,6 +8,16 @@ export const TURN_TAKE_ASSETS = {
   streakBonus: '/assets/turn-take/07-streak-bonus.png',
   drawEmblem: '/assets/turn-take/11-draw-emblem.png',
   inviteConnection: '/assets/turn-take/12-invite-connection.png',
+  ornaments: {
+    reticleCyan: '/assets/turn-take/ornaments/reticle-cyan.png',
+    orbitalViolet: '/assets/turn-take/ornaments/orbital-violet.png',
+    chevronRush: '/assets/turn-take/ornaments/chevron-rush.png',
+    frameCorners: '/assets/turn-take/ornaments/frame-corners.png',
+    clashDiamond: '/assets/turn-take/ornaments/clash-diamond.png',
+    telemetryRibbons: '/assets/turn-take/ornaments/telemetry-ribbons.png',
+    concentricDial: '/assets/turn-take/ornaments/concentric-dial.png',
+    boardBrackets: '/assets/turn-take/ornaments/board-brackets.png',
+  },
 } as const;
 
 export interface AvatarOption {

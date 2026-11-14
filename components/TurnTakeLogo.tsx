@@ -55,14 +55,14 @@ export function TurnTakeLogo({ size = 'lg' }: TurnTakeLogoProps) {
   }
 
   return (
-    <div className="inline-flex items-center gap-4 select-none">
+    <div className="inline-flex items-center gap-3 sm:gap-4 select-none">
       <svg
         width="52"
         height="52"
         viewBox="0 0 56 56"
         fill="none"
         aria-hidden="true"
-        className="shrink-0"
+        className="w-10 h-10 sm:w-[52px] sm:h-[52px] shrink-0"
       >
         <circle
           cx="28"
@@ -105,7 +105,7 @@ export function TurnTakeLogo({ size = 'lg' }: TurnTakeLogoProps) {
         />
       </svg>
       <div className="flex flex-col">
-        <h1 className="font-display text-4xl sm:text-5xl font-extrabold tracking-tight text-[#F4F4F0] leading-none">
+        <h1 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight text-[#F4F4F0] leading-none">
           TURN<span className="text-[#43DDE6]">/</span>
           <span className="text-[#FF795E]">/</span>TAKE
         </h1>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion, MotionConfig } from 'motion/react';
 import { soundEngine } from '@/lib/game/audio';
 import {
   checkWinner,
@@ -778,133 +779,168 @@ export function TurnTakeApp({
   ]);
 
   return (
-    <>
-      {screen === 'title' && (
-        <LobbyScreen
-          playerName={playerName}
-          playerAvatar={playerAvatar}
-          opponentType={lobbyOpponent}
-          botDifficulty={botDifficulty}
-          minigameSelection={minigameSelection}
-          muted={muted}
-          roomError={roomError}
-          roomBusy={roomBusy}
-          onPlayerNameChange={setPlayerName}
-          onPlayerAvatarChange={setPlayerAvatar}
-          onOpponentTypeChange={setLobbyOpponent}
-          onBotDifficultyChange={setBotDifficulty}
-          onMinigameSelectionChange={setMinigameSelection}
-          onToggleMute={handleToggleMute}
-          onStartClassic={handleStartClassic}
-          onStartClash={handleStartClash}
-          onCreateRoom={handleCreateRoom}
-          onJoinRoom={handleJoinRoom}
-          onOpenLeaderboard={() => {
-            fetchLeaderboard();
-            setLeaderboardOpen(true);
-          }}
-        />
-      )}
+    <MotionConfig reducedMotion="user">
+      <AnimatePresence mode="wait">
+        {screen === 'title' && (
+          <motion.div
+            key="title"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <LobbyScreen
+              playerName={playerName}
+              playerAvatar={playerAvatar}
+              opponentType={lobbyOpponent}
+              botDifficulty={botDifficulty}
+              minigameSelection={minigameSelection}
+              muted={muted}
+              roomError={roomError}
+              roomBusy={roomBusy}
+              onPlayerNameChange={setPlayerName}
+              onPlayerAvatarChange={setPlayerAvatar}
+              onOpponentTypeChange={setLobbyOpponent}
+              onBotDifficultyChange={setBotDifficulty}
+              onMinigameSelectionChange={setMinigameSelection}
+              onToggleMute={handleToggleMute}
+              onStartClassic={handleStartClassic}
+              onStartClash={handleStartClash}
+              onCreateRoom={handleCreateRoom}
+              onJoinRoom={handleJoinRoom}
+              onOpenLeaderboard={() => {
+                fetchLeaderboard();
+                setLeaderboardOpen(true);
+              }}
+            />
+          </motion.div>
+        )}
 
-      {screen === 'waiting' && room && (
-        <WaitingRoomScreen
-          room={room}
-          onSwitchToBot={() => {
-            setRoom(null);
-            resetMatchState(room.mode, 'bot', 'X', true);
-            setScreen('playing');
-          }}
-          onCancel={() => {
-            setRoom(null);
-            setScreen('title');
-          }}
-        />
-      )}
+        {screen === 'waiting' && room && (
+          <motion.div
+            key="waiting"
+            initial={{ opacity: 0, y: 8, scale: 0.99 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.99 }}
+            transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <WaitingRoomScreen
+              room={room}
+              onSwitchToBot={() => {
+                setRoom(null);
+                resetMatchState(room.mode, 'bot', 'X', true);
+                setScreen('playing');
+              }}
+              onCancel={() => {
+                setRoom(null);
+                setScreen('title');
+              }}
+            />
+          </motion.div>
+        )}
 
-      {(screen === 'playing' || screen === 'gameover') && (
-        <ArenaScreen
-          mode={mode}
-          opponentType={opponentType}
-          botDifficulty={botDifficulty}
-          roomCode={room?.code ?? null}
-          localRoomMark={localRoomMark}
-          board={board}
-          currentTurn={currentTurn}
-          winningLine={winningLine}
-          winner={winner}
-          playerX={playerX}
-          playerO={playerO}
-          sessionScores={sessionScores}
-          clashRound={clashRound}
-          clashStreaks={clashStreaks}
-          pendingPlacements={pendingPlacements}
-          pendingPlacer={pendingPlacer}
-          activeMinigame={activeMinigame}
-          botThinking={botThinking}
-          muted={muted}
-          onCellClick={handleCellClick}
-          onLaunchClash={() => {
-            soundEngine.playClashStart();
-            setClashOpen(true);
-          }}
-          onRestart={() => handleRestartMatch(true)}
-          onBackToLobby={() => {
-            setClashOpen(false);
-            setRoom(null);
-            setScreen('title');
-          }}
-          onOpenLeaderboard={() => {
-            fetchLeaderboard();
-            setLeaderboardOpen(true);
-          }}
-          onToggleMute={handleToggleMute}
-        />
-      )}
+        {(screen === 'playing' || screen === 'gameover') && (
+          <motion.div
+            key="arena"
+            initial={{ opacity: 0, y: 8, scale: 0.99 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.99 }}
+            transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <ArenaScreen
+              mode={mode}
+              opponentType={opponentType}
+              botDifficulty={botDifficulty}
+              roomCode={room?.code ?? null}
+              localRoomMark={localRoomMark}
+              board={board}
+              currentTurn={currentTurn}
+              winningLine={winningLine}
+              winner={winner}
+              playerX={playerX}
+              playerO={playerO}
+              sessionScores={sessionScores}
+              clashRound={clashRound}
+              clashStreaks={clashStreaks}
+              pendingPlacements={pendingPlacements}
+              pendingPlacer={pendingPlacer}
+              activeMinigame={activeMinigame}
+              botThinking={botThinking}
+              muted={muted}
+              onCellClick={handleCellClick}
+              onLaunchClash={() => {
+                soundEngine.playClashStart();
+                setClashOpen(true);
+              }}
+              onRestart={() => handleRestartMatch(true)}
+              onBackToLobby={() => {
+                setClashOpen(false);
+                setRoom(null);
+                setScreen('title');
+              }}
+              onOpenLeaderboard={() => {
+                fetchLeaderboard();
+                setLeaderboardOpen(true);
+              }}
+              onToggleMute={handleToggleMute}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {screen === 'playing' && mode === 'clash' && clashOpen && !winner && (
-        <ClashMinigameModal
-          round={clashRound}
-          minigame={activeMinigame}
-          opponentType={opponentType}
-          playerX={playerX}
-          playerO={playerO}
-          localRoomMark={localRoomMark}
-          xSubmittedScore={clashXScore}
-          oSubmittedScore={clashOScore}
-          lastSummary={lastClashSummary}
-          onSubmitSingleScore={handleSubmitClashScore}
-          onContinueAfterSummary={handleContinueAfterClash}
-        />
-      )}
+      <AnimatePresence>
+        {screen === 'playing' && mode === 'clash' && clashOpen && !winner && (
+          <ClashMinigameModal
+            key="clash-modal"
+            round={clashRound}
+            minigame={activeMinigame}
+            opponentType={opponentType}
+            playerX={playerX}
+            playerO={playerO}
+            localRoomMark={localRoomMark}
+            xSubmittedScore={clashXScore}
+            oSubmittedScore={clashOScore}
+            lastSummary={lastClashSummary}
+            onSubmitSingleScore={handleSubmitClashScore}
+            onContinueAfterSummary={handleContinueAfterClash}
+          />
+        )}
+      </AnimatePresence>
 
-      {screen === 'gameover' && winner && (
-        <OutcomeModal
-          winner={winner}
-          mode={mode}
-          playerX={playerX}
-          playerO={playerO}
-          moveCount={moveCount}
-          sessionScores={sessionScores}
-          bestStreak={bestStreak}
-          onPlayAgain={() => handleRestartMatch(true)}
-          onBackToLobby={() => {
-            setRoom(null);
-            setScreen('title');
-          }}
-          onOpenLeaderboard={() => {
-            fetchLeaderboard();
-            setLeaderboardOpen(true);
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {screen === 'gameover' && winner && (
+          <OutcomeModal
+            key="outcome-modal"
+            winner={winner}
+            mode={mode}
+            playerX={playerX}
+            playerO={playerO}
+            moveCount={moveCount}
+            sessionScores={sessionScores}
+            bestStreak={bestStreak}
+            onPlayAgain={() => handleRestartMatch(true)}
+            onBackToLobby={() => {
+              setRoom(null);
+              setScreen('title');
+            }}
+            onOpenLeaderboard={() => {
+              fetchLeaderboard();
+              setLeaderboardOpen(true);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
-      {leaderboardOpen && (
-        <LeaderboardModal
-          entries={leaderboardEntries}
-          loading={leaderboardLoading}
-          onClose={() => setLeaderboardOpen(false)}
-        />
-      )}
-    </>
+      <AnimatePresence>
+        {leaderboardOpen && (
+          <LeaderboardModal
+            key="leaderboard-modal"
+            entries={leaderboardEntries}
+            loading={leaderboardLoading}
+            onClose={() => setLeaderboardOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+    </MotionConfig>
   );
 }

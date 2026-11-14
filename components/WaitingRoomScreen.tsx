@@ -35,55 +35,64 @@ export function WaitingRoomScreen({
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-[#10141D] flex flex-col justify-between p-4 sm:p-8 overflow-hidden">
-      <div className="fixed inset-0 pointer-events-none">
+    <div className="relative min-h-screen w-full bg-[#10141D] flex flex-col justify-between p-4 sm:p-6 lg:p-8 overflow-x-hidden">
+      <div className="fixed inset-0 pointer-events-none select-none overflow-hidden">
         <img
           src={TURN_TAKE_ASSETS.waitingRoomBackground}
           alt=""
           referrerPolicy="no-referrer"
-          className="w-full h-full object-cover opacity-50"
+          className="w-full h-full object-cover object-center opacity-50"
         />
-        <div className="absolute inset-0 bg-[#10141D]/55" />
+        <div className="absolute inset-0 bg-[#10141D]/60" />
       </div>
 
-      <header className="relative z-10 max-w-4xl w-full mx-auto flex items-center justify-between">
+      <header className="relative z-10 max-w-[1180px] w-full mx-auto flex items-center justify-between gap-4">
         <TurnTakeLogo size="sm" />
         <button
           type="button"
           onClick={onCancel}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium bg-[#151B28]/90 text-[#F4F4F0] border border-[#65737C]/35 hover:border-[#F4F4F0]/50 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 min-h-[42px] px-4 py-2 rounded-xl text-xs sm:text-sm font-medium bg-[#151B28]/90 text-[#F4F4F0] border border-[#65737C]/40 hover:border-[#F4F4F0]/55 active:scale-95 transition-all cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#43DDE6]"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
+          <ArrowLeft className="w-4 h-4" />
           Back to Lobby
         </button>
       </header>
 
       <main
         suppressHydrationWarning
-        className="relative z-10 max-w-md w-full mx-auto my-auto rounded-3xl bg-[#151C2A]/95 border border-[#65737C]/35 p-6 sm:p-8 text-center shadow-[0_24px_70px_rgba(0,0,0,0.65)]"
+        className="relative z-10 max-w-md w-full mx-auto my-auto rounded-3xl bg-[#151C2A]/95 border border-[#8B7CFF]/35 p-6 sm:p-8 text-center shadow-[0_24px_70px_rgba(0,0,0,0.65)]"
       >
-        <img
-          src={TURN_TAKE_ASSETS.inviteConnection}
-          alt="Multiplayer signal arc"
-          referrerPolicy="no-referrer"
-          className="w-24 h-24 mx-auto object-contain mb-3"
-        />
+        <div className="relative w-28 h-28 mx-auto mb-3 flex items-center justify-center">
+          <img
+            src={TURN_TAKE_ASSETS.ornaments.orbitalViolet}
+            alt=""
+            referrerPolicy="no-referrer"
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 w-full h-full object-contain opacity-45 orbit-slow-spin"
+          />
+          <img
+            src={TURN_TAKE_ASSETS.inviteConnection}
+            alt="Multiplayer signal arc"
+            referrerPolicy="no-referrer"
+            className="relative z-10 w-20 h-20 object-contain"
+          />
+        </div>
 
-        <p className="text-xs font-medium text-[#8B7CFF]">
+        <p className="text-xs sm:text-sm font-medium text-[#8B7CFF]">
           {room.mode === 'classic' ? 'Classic Mode' : 'Clash Mode'} · Private
           Room
         </p>
 
-        <h1 className="font-display text-2xl font-bold text-[#F4F4F0] mt-1">
+        <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-[#F4F4F0] mt-1">
           Waiting for Opponent
         </h1>
 
-        <p className="text-sm text-[#F4F4F0]/70 mt-2">
+        <p className="text-sm sm:text-[15px] leading-relaxed text-[#CBD5E1] mt-2">
           Share this invite code or link with a friend to start your match.
         </p>
 
-        <div className="my-6 p-4 rounded-2xl bg-[#10141D] border border-[#65737C]/30">
-          <p className="text-[11px] font-medium text-[#65737C]">Invite Code</p>
+        <div className="my-6 p-4 rounded-2xl bg-[#10141D] border border-[#65737C]/35">
+          <p className="text-xs font-medium text-[#94A3B8]">Invite Code</p>
           <p
             data-testid="room-invite-code"
             className="font-mono text-3xl font-bold tracking-[0.22em] text-[#43DDE6] mt-1"
@@ -92,11 +101,11 @@ export function WaitingRoomScreen({
           </p>
         </div>
 
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-3">
           <button
             type="button"
             onClick={handleCopy}
-            className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold text-sm bg-[#43DDE6] text-[#10141D] hover:bg-[#62e6ed] transition-colors cursor-pointer"
+            className="btn-arcade-sheen w-full inline-flex items-center justify-center gap-2 min-h-[48px] py-3 px-4 rounded-xl font-semibold text-sm sm:text-base bg-[#43DDE6] text-[#10141D] hover:bg-[#62e6ed] active:scale-[0.98] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4F4F0]"
           >
             {copied ? (
               <>
@@ -114,9 +123,9 @@ export function WaitingRoomScreen({
           <button
             type="button"
             onClick={onSwitchToBot}
-            className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-medium text-xs bg-[#10141D] text-[#F4F4F0]/85 border border-[#65737C]/30 hover:border-[#F4F4F0]/50 transition-colors cursor-pointer"
+            className="w-full inline-flex items-center justify-center gap-2 min-h-[44px] py-2.5 px-4 rounded-xl font-medium text-xs sm:text-sm bg-[#10141D] text-[#E2E8F0] border border-[#65737C]/35 hover:border-[#F4F4F0]/55 active:scale-[0.98] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#43DDE6]"
           >
-            <Bot className="w-3.5 h-3.5 text-[#FF795E]" />
+            <Bot className="w-4 h-4 text-[#FF795E]" />
             Play Against Bot Instead
           </button>
         </div>
