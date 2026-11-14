@@ -52,3 +52,9 @@ Non-secret operational record for the TURN//TAKE Vercel + Supabase rollout follo
 - **Staging Supabase Project:** `turn-take-staging` (`ffsvimzxnxqbogzvuupi`, `us-east-1`, `ACTIVE_HEALTHY`)
 - **Local Env:** Created `.env.local` with staging `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (verified gitignored via `.gitignore:6:.env*`)
 - **Target Vercel Team:** `famanias` (`team-e2117dad`, Hobby plan)
+
+## Task 3: Staging Database & Security Inspection
+- **Migrations (`supabase db push` & `migration list --linked`):** Linked `ffsvimzxnxqbogzvuupi`; all 5 local and remote migrations (`20261114134954` through `20261114145119`) match 1:1.
+- **Advisors & Isolation (`supabase db advisors --linked` & Data API check):** 0 `ERROR` findings. Expected `WARN`/`INFO` notices reviewed and accepted: `public.game_leaderboard` is intentionally public casual opt-in read-only RPC, `realtime.messages` allows anonymous Auth sessions only when `private.can_receive(realtime.topic())` confirms active membership, and all 11 `private.*` tables deny direct `anon`/`authenticated` access (`Accept-Profile: private` returns `406 PGRST106`; `private.sweep_deadlines` not executable by `anon`/`authenticated`).
+- **Auth & Realtime Settings:** `GET /auth/v1/settings` verified `"anonymous_users": true`; owner configured localhost Auth URLs (`http://localhost:3101`) and disabled Realtime public channel access.
+- **Cron (`pg_cron` `1.6.4` + `supabase/cron.sql`):** Single active job `turn-take-deadlines` (`jobid: 1`, schedule `5 seconds`) confirmed running with `status: succeeded` in `cron.job_run_details`.
