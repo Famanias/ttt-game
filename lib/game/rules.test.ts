@@ -12,6 +12,35 @@ import {
 } from './rules';
 import type { BoardState } from './types';
 
+test('all eight winning triples recognize both marks without mutating the board', () => {
+  const triples = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  for (const mark of ['X', 'O'] as const) {
+    for (const triple of triples) {
+      const board = createEmptyBoard();
+      triple.forEach(i => { board[i] = mark; });
+      const original = [...board];
+      assert.deepEqual(checkWinner(board), { winner: mark, line: triple });
+      assert.deepEqual(board, original);
+    }
+  }
+});
+
+test('all bot difficulties choose an empty cell and preserve the caller board', () => {
+  const board: BoardState = ['X', null, null, null, 'O', null, null, null, 'X'];
+  for (const difficulty of ['casual', 'tactical', 'master'] as const) {
+    const original = [...board];
+    const index = chooseBotMove(board, 'O', difficulty, () => 0.5);
+    assert.equal(board[index], null);
+    assert.deepEqual(board, original);
+  }
+});
+
+test('alternating Clash winners break the previous streak; ties never grant a cell', () => {
+  assert.deepEqual(resolveClashRound(10, 20, { X: 1, O: 0 }, 9).nextStreaks, { X: 0, O: 1 });
+  assert.equal(resolveClashRound(20, 20, { X: 1, O: 0 }, 9).placementsAwarded, 0);
+  assert.equal(resolveClashRound(20, 10, { X: 1, O: 0 }, 1).placementsAwarded, 1);
+});
+
 test('checkWinner detects horizontal, vertical, diagonal, and draw states', () => {
   const rowWin: BoardState = ['X', 'X', 'X', 'O', 'O', null, null, null, null];
   assert.deepEqual(checkWinner(rowWin), { winner: 'X', line: [0, 1, 2] });
