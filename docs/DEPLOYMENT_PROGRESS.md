@@ -101,3 +101,22 @@ Non-secret operational record for the TURN//TAKE Vercel + Supabase rollout follo
   - Pass mode: lazy pre-click counts (`turnstile=0 signup=0`), new guest solved Turnstile -> `signup=200` -> Classic room `XPWK94` (`room=200`), and existing guest reload skipped Turnstile completely (`turnstileReqs=0 signupReqs=0`, Clash room `EJZWUA`).
   - Fail mode (server test secret failing dummy tokens): `POST /auth/v1/signup` HTTP `400` (`invalid-input-response`), `0` `/api/rooms` calls, visible `role="alert"` error, and Local Classic remained playable.
   - Restored `turn-take-staging` back to no-CAPTCHA staging baseline (`security_captcha_enabled=False`, removed `NEXT_PUBLIC_TURNSTILE_SITE_KEY` from Vercel `Preview`, deployed `dpl_Bb6Kj33t1tSZBUCXzNFhngyyjJCM` at `https://ttt-game-6ltwkbj7r-team-e2117dad.vercel.app`) and re-verified `bun run test:hosted` (`PASS hosted Classic` + `PASS hosted Clash`).
+
+## Task 7: Production Provisioning & Restricted Build
+
+- **Date:** 2026-11-15
+- **Commit Built:** `c6cdba1` (`Famanias/deployment`)
+- **Supabase Production (`turn-take-prod` / `yeehqcdayrygwdhyyzfc`, `us-east-1`):**
+  - Free-tier backup state audited (`walg_enabled: true`, `pitr_enabled: false`, `backups: []`; no automated backups or PITR on Free plan).
+  - Linked CLI to `yeehqcdayrygwdhyyzfc`, ran `supabase db push --dry-run` and `supabase db push --yes`, and verified `supabase migration list --linked` matches 1:1 (`20261114134954` through `20261114145119`).
+  - Enabled `pg_cron` and scheduled `supabase/cron.sql` (`jobid: 1`, `turn-take-deadlines`, `5 seconds` cadence, verified `status: succeeded` in `cron.job_run_details`).
+  - Verified `supabase db advisors --linked` + MCP advisors (`0` ERRORs), `Accept-Profile: private` returns `406 PGRST106`, `anon`/`authenticated` denied `private.sweep_deadlines()`, `private_only: true` on Realtime with exact-topic `realtime.messages` policies, and `public.game_leaderboard('classic')` returns empty initial entries.
+  - Enabled anonymous auth (`external_anonymous_users_enabled: true`, `rate_limit_anonymous_users: 30`) and configured `site_url` (`https://ttt-game-sooty.vercel.app`), `uri_allow_list` (`https://ttt-game-sooty.vercel.app/**,https://ttt-game-team-e2117dad.vercel.app/**`), and Turnstile CAPTCHA (`security_captcha_enabled: true`, `security_captcha_provider: turnstile`); probed `POST /auth/v1/signup` without token and confirmed HTTP `400 captcha_failed` after GoTrue config reload.
+- **Cloudflare Turnstile Production Widget:**
+  - Created widget `"TURN//TAKE Production"` (account `62381eb928b16fdc8781f8f4fc45ab0e`, sitekey `0x4AAAAAAGBXl2sZfeZyquBe`, mode `managed`, domains `ttt-game-sooty.vercel.app` and `ttt-game-team-e2117dad.vercel.app`); secret stored exclusively in Supabase Auth.
+- **Vercel Restricted Production Candidate:**
+  - Deployment ID: `dpl_fMhoWr6hFmH4BYW2dY5ZVTGx7wDH`
+  - Immutable URL: `https://ttt-game-53svbvcj5-team-e2117dad.vercel.app`
+  - Production Aliases: `https://ttt-game-sooty.vercel.app`, `https://ttt-game-team-e2117dad.vercel.app`
+  - `Production` env vars set before build: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (`Preview` env vars confirmed unchanged pointing at `ffsvimzxnxqbogzvuupi`).
+  - Restricted gate verified prior to Task 8 acceptance: unauthenticated requests to all three production URLs return HTTP `302` (`vercel.com/sso-api`, `ssoProtection.deploymentType = "all"`); protection-bypass inspection verified all 12 static chunks carry production Supabase URL, publishable key, and Turnstile sitekey (`foundStagingUrl: false`), and `/api/leaderboard` returned `{"mode":"clash","casual":true,"entries":[]}`.
