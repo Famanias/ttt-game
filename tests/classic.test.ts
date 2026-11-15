@@ -63,3 +63,16 @@ test('private channel denies nonmembers and prevents reading other room events o
     await db.exec('reset role');
   }finally{await db.close();}
 });
+
+test('returning heartbeat starts waiting room when both players are ready',async()=>{
+  const db=await database();try{
+    let r=(await room(db,'classic')).room;
+    r=(await request(db,USERS[1],'join',r.code,command())).room;
+    r=(await request(db,USERS[0],'ready',r.code,command({expectedVersion:r.version,ready:true}))).room;
+    await db.query("update private.room_members set last_seen_at=now()-interval '15 seconds' where room_id=$1 and user_id=$2",[r.id,USERS[0]]);
+    r=(await request(db,USERS[1],'ready',r.code,command({expectedVersion:r.version,ready:true}))).room;
+    assert.equal(r.match,null);
+    r=(await request(db,USERS[0],'heartbeat',r.code,command())).room;
+    assert.equal(r.match?.phase,'countdown');
+  }finally{await db.close();}
+});

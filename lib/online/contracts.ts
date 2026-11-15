@@ -3,6 +3,28 @@ import type { AvatarId, BoardState, GameMode, Mark, PlayerProfile, RoomState } f
 
 export const avatarIds = ['orb-bot','pixel-blob','shield-face','cube-runner','spark-eye','comet-mask'] as const;
 export const roomCode = z.string().trim().toUpperCase().regex(/^[A-HJ-NP-Z2-9]{6}$/);
+export const usernameSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9_.-]{3,18}$/, 'Username must be 3-18 characters using letters, numbers, _, ., or -.');
+export const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters.')
+  .max(72, 'Password must be 72 characters or fewer.');
+export const authSchemas = {
+  register: z.object({
+    username: usernameSchema,
+    password: passwordSchema,
+    avatarId: z.enum(avatarIds).default('orb-bot'),
+    publicLeaderboard: z.boolean().default(false),
+    captchaToken: z.string().trim().min(1).max(4096).optional(),
+  }).strict(),
+  login: z.object({
+    username: usernameSchema,
+    password: passwordSchema,
+    captchaToken: z.string().trim().min(1).max(4096).optional(),
+  }).strict(),
+} as const;
 const receipt = { clientCommandId: z.uuid() };
 const version = { ...receipt, expectedVersion: z.number().int().nonnegative() };
 export const schemas = {
@@ -50,3 +72,30 @@ export function adaptRoom(dto: OnlineRoom): RoomState {
     lastClashSummary:null,updatedAt:Date.parse(dto.serverNow) };
 }
 export type PublicProfile = {name:string;avatarId:AvatarId;publicLeaderboard:boolean};
+export interface AccountStats {
+  classicWins: number;
+  classicLosses: number;
+  classicDraws: number;
+  clashWins: number;
+  clashLosses: number;
+  clashDraws: number;
+  roundsWon: number;
+  roundsPlayed: number;
+  longestStreak: number;
+}
+export interface AccountSession {
+  registered: boolean;
+  username?: string;
+  avatarId?: AvatarId;
+  publicLeaderboard?: boolean;
+  stats?: AccountStats;
+}
+export interface MatchHistoryItem {
+  id: string;
+  mode: GameMode;
+  winner: Mark | 'draw';
+  myMark: Mark;
+  opponentName: string;
+  finishedAt: string;
+  board: BoardState;
+}

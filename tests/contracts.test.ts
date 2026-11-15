@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { schemas, roomCode } from '../lib/online/contracts';
+import { schemas, authSchemas, roomCode } from '../lib/online/contracts';
+import { accountEmail } from '../lib/server/auth';
 import { readBody } from '../lib/server/api';
 
 test('commands reject forged authority, invalid avatars, invalid cells and oversized event arrays',()=>{
@@ -11,6 +12,15 @@ test('commands reject forged authority, invalid avatars, invalid cells and overs
   assert(!schemas.profile.safeParse({clientCommandId:id,name:'<script>',avatarId:'file:///etc/passwd',publicLeaderboard:true}).success);
   assert.equal(roomCode.parse(' abc234 '),'ABC234');
   assert(!roomCode.safeParse('ABO123').success);
+});
+
+test('account contracts accept simple 8-char numeric passwords and map usernames deterministically',()=>{
+  assert.equal(authSchemas.register.safeParse({ username: 'Alex_99', password: '12345678' }).success, true);
+  assert.equal(authSchemas.login.safeParse({ username: 'Alex_99', password: '12345678' }).success, true);
+  assert.equal(authSchemas.register.safeParse({ username: 'ab', password: '12345678' }).success, false);
+  assert.equal(authSchemas.register.safeParse({ username: 'bad name', password: '12345678' }).success, false);
+  assert.equal(authSchemas.register.safeParse({ username: 'Alex_99', password: '1234567' }).success, false);
+  assert.equal(accountEmail('Alex_99'), accountEmail(' alex_99 '));
 });
 
 test('HTTP boundary rejects cross-origin, wrong content type and bodies larger than the byte limit',async()=>{

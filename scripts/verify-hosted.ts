@@ -50,7 +50,11 @@ let heartbeat:ReturnType<typeof setInterval>|undefined;
 try{
   for(let who=0;who<3;who++){
     const {data,error}=await guests[who].auth.signInAnonymously();assert.ifError(error);assert(data.user);ids.push(data.user.id);
-    const result=await rpc(who,'profile','',command({name:`Smoke${who}-${suffix}`,avatarId:'orb-bot',publicLeaderboard:true}));assert(!result.error,JSON.stringify(result));
+    if(who===0){
+      const gated=await rpc(who,'profile','',command({name:`Smoke${who}-${suffix}`,avatarId:'orb-bot',publicLeaderboard:true}));
+      assert(gated.error&&gated.error.code==='ACCOUNT_REQUIRED',JSON.stringify(gated));
+    }
+    const result=await rpc(who,'profile','',command({name:`Smoke${who}-${suffix}`,avatarId:'orb-bot',publicLeaderboard:false}));assert(!result.error,JSON.stringify(result));
   }
   heartbeat=setInterval(()=>{for(const code of codes)for(const who of [0,1])void rpc(who,'heartbeat',code,command()).catch(()=>{});},4000);
   let r=await start('classic');await subscribe(0,r,true);await subscribe(2,r,false);
@@ -81,8 +85,31 @@ try{
     for(const cellIndex of index===0?[0]:index===1?[1,8]:[2])r=await mutate(0,'move',r,{cellIndex});
   }
   assert.equal(r.match!.winner,'X');
-  const {data:board,error}=await guests[2].rpc('game_leaderboard',{p_mode:'clash'});assert.ifError(error);
-  assert(board.entries.some((entry:{name:string;wins:number})=>entry.name===`Smoke0-${suffix}`&&entry.wins===1));
+  const {data:boardBefore,error:boardBeforeErr}=await guests[2].rpc('game_leaderboard',{p_mode:'clash'});assert.ifError(boardBeforeErr);
+  const regName=`Smoke0-${suffix}`.slice(0,18);
+  assert(!boardBefore.entries.some((entry:{name:string})=>entry.name===regName));
+  const serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const supabaseUrl=process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if(serviceKey&&supabaseUrl){
+    const {createClient:createServiceClient}=await import('@supabase/supabase-js');
+    const admin=createServiceClient(supabaseUrl,serviceKey,{auth:{autoRefreshToken:false,persistSession:false}});
+    const {data:created,error:createErr}=await admin.auth.admin.createUser({
+      email:`smoke-${suffix}@users.turntake.example`,
+      password:'12345678',
+      email_confirm:true,
+    });
+    assert.ifError(createErr);assert(created.user);
+    const {data:migrated,error:migErr}=await admin.rpc('auth_complete_registration',{
+      p_guest_user_id:ids[0],
+      p_user_id:created.user.id,
+      p_username:regName,
+      p_avatar_id:'orb-bot',
+      p_public_leaderboard:true,
+    });
+    assert.ifError(migErr);assert.equal(migrated.username,regName);
+    const {data:board,error}=await guests[2].rpc('game_leaderboard',{p_mode:'clash'});assert.ifError(error);
+    assert(board.entries.some((entry:{name:string;wins:number})=>entry.name===regName&&entry.wins===1));
+  }
   console.log('PASS hosted Clash: all three shared challenges, hidden attempts, authorized bonus claims and one persisted win.');
 } finally {
   if(heartbeat)clearInterval(heartbeat);

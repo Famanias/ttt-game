@@ -33,13 +33,17 @@ import { LobbyScreen } from './LobbyScreen';
 import { OutcomeModal } from './OutcomeModal';
 import { WaitingRoomScreen } from './WaitingRoomScreen';
 import { OnlineRoomView } from './OnlineRoomView';
-import { onlineGame, ensureGuest } from '@/lib/services/online-game';
+import { TurnstileChallenge } from './TurnstileChallenge';
+import { AuthModal, type AuthModalTab } from './AuthModal';
+import { ProgressModal } from './ProgressModal';
+import { accountAuth, onlineGame, ensureGuest, GameError } from '@/lib/services/online-game';
 import { useLeaderboard } from '@/hooks/use-leaderboard';
-import type { OnlineRoom } from '@/lib/online/contracts';
+import type { AccountSession, OnlineRoom } from '@/lib/online/contracts';
 
 interface TurnTakeAppProps {
   initialAutostart?: boolean;
   initialRoomCode?: string | null;
+  initialAccount?: AccountSession | null;
 }
 
 const DEFAULT_BOT_PROFILE: PlayerProfile = {
@@ -55,6 +59,7 @@ const DEFAULT_P2_PROFILE: PlayerProfile = {
 export function TurnTakeApp({
   initialAutostart = false,
   initialRoomCode = null,
+  initialAccount = null,
 }: TurnTakeAppProps) {
   const [screen, setScreen] = useState<GameScreen>(
     initialAutostart ? 'playing' : 'title'
@@ -67,8 +72,20 @@ export function TurnTakeApp({
   const [minigameSelection, setMinigameSelection] =
     useState<MinigameSelection>('rotating');
 
-  const [playerName, setPlayerName] = useState('Player X');
-  const [playerAvatar, setPlayerAvatar] = useState<AvatarId>('orb-bot');
+  const [account, setAccount] = useState<AccountSession | null>(initialAccount);
+  const [authModalTab, setAuthModalTab] = useState<AuthModalTab | null>(null);
+  const [progressOpen, setProgressOpen] = useState(false);
+
+  const [playerName, setPlayerName] = useState(
+    initialAccount?.registered && initialAccount.username
+      ? initialAccount.username
+      : 'Player X'
+  );
+  const [playerAvatar, setPlayerAvatar] = useState<AvatarId>(
+    initialAccount?.registered && initialAccount.avatarId
+      ? initialAccount.avatarId
+      : 'orb-bot'
+  );
 
   const [board, setBoard] = useState<BoardState>(createEmptyBoard);
   const [startingMark, setStartingMark] = useState<Mark>('X');
@@ -99,12 +116,28 @@ export function TurnTakeApp({
   } | null>(null);
 
   const [onlineRoom,setOnlineRoom]=useState<OnlineRoom|null>(null);
-  const [publicLeaderboard,setPublicLeaderboard]=useState(false);
+  const [publicLeaderboard,setPublicLeaderboard]=useState(
+    Boolean(initialAccount?.registered && initialAccount.publicLeaderboard)
+  );
   // Room multiplayer state
   const [room, setRoom] = useState<RoomState | null>(null);
   const [localRoomMark, setLocalRoomMark] = useState<Mark>('X');
   const [roomError, setRoomError] = useState<string | null>(null);
   const [roomBusy, setRoomBusy] = useState(false);
+  const [captchaRequired, setCaptchaRequired] = useState(false);
+  const [captchaChallengeKey, setCaptchaChallengeKey] = useState(0);
+  const captchaTokenRef = useRef<string | null>(null);
+  const pendingOnlineActionRef = useRef<(() => Promise<{ room: OnlineRoom }>) | null>(null);
+  const roomBusyRef = useRef(false);
+  const authEpochRef = useRef(0);
+  const enterOnlineRef = useRef<(action: () => Promise<{ room: OnlineRoom }>, tokenOverride?: string) => Promise<void>>(
+    async () => {}
+  );
+  const clearPendingCaptcha = useCallback(() => {
+    pendingOnlineActionRef.current = null;
+    captchaTokenRef.current = null;
+    setCaptchaRequired(false);
+  }, []);
 
   // UI & Audio state
   const [muted, setMuted] = useState(false);
@@ -190,19 +223,21 @@ export function TurnTakeApp({
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
+    clearPendingCaptcha();
     setRoom(null);
     resetMatchState('classic', lobbyOpponent, 'X', true);
     setScreen('playing');
-  }, [lobbyOpponent, resetMatchState]);
+  }, [clearPendingCaptcha, lobbyOpponent, resetMatchState]);
 
   const handleStartClash = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
+    clearPendingCaptcha();
     setRoom(null);
     resetMatchState('clash', lobbyOpponent, 'X', true);
     setScreen('playing');
-  }, [lobbyOpponent, resetMatchState]);
+  }, [clearPendingCaptcha, lobbyOpponent, resetMatchState]);
 
   useEffect(() => {
     if (!initialRoomCode) return;
@@ -440,15 +475,47 @@ export function TurnTakeApp({
     [opponentType, startingMark, mode, resetMatchState]
   );
 
-  const enterOnline = async (action:()=>Promise<{room:OnlineRoom}>) => {
+  const enterOnline = async (action:()=>Promise<{room:OnlineRoom}>, tokenOverride?:string) => {
+    if (roomBusyRef.current) return;
+    roomBusyRef.current = true;
     setRoomError(null);setRoomBusy(true);
+    const token = tokenOverride ?? captchaTokenRef.current ?? undefined;
+    // Consume staged token before sending so an expired or rejected value cannot be reused.
+    captchaTokenRef.current = null;
     try {
-      await onlineGame.profile({name:playerName.trim(),avatarId:playerAvatar,publicLeaderboard});
-      const data=await action();setOnlineRoom(data.room);
+      await onlineGame.profile({name:playerName.trim(),avatarId:playerAvatar,publicLeaderboard}, token);
+      const data=await action();
+      pendingOnlineActionRef.current = null;
+      setCaptchaRequired(false);
+      setOnlineRoom(data.room);
       window.history.replaceState(null,'',`/room/${data.room.code}`);
-    } catch(error){setRoomError(error instanceof Error?error.message:'Unable to connect.');}
-    finally{setRoomBusy(false);}
+    } catch(error){
+      if (error instanceof GameError && error.code === 'CAPTCHA_REQUIRED') {
+        pendingOnlineActionRef.current = action;
+        setCaptchaRequired(true);
+      } else {
+        pendingOnlineActionRef.current = null;
+        if (error instanceof GameError) {
+          // Profile/room API rejection means guest auth already succeeded; unmount CAPTCHA cleanly.
+          setCaptchaRequired(false);
+        } else if (token) {
+          setCaptchaChallengeKey((k) => k + 1);
+        }
+        setRoomError(error instanceof Error?error.message:'Unable to connect.');
+      }
+    } finally{roomBusyRef.current=false;setRoomBusy(false);}
   };
+  useEffect(() => {
+    enterOnlineRef.current = enterOnline;
+  });
+  const handleCaptchaToken = useCallback((token: string | null) => {
+    captchaTokenRef.current = token;
+    if (!token) return;
+    const pending = pendingOnlineActionRef.current;
+    if (!pending || roomBusyRef.current) return;
+    pendingOnlineActionRef.current = null;
+    void enterOnlineRef.current(pending, token);
+  }, []);
   const handleCreateRoom=(roomMode:GameMode)=>enterOnline(()=>onlineGame.create(roomMode));
   const handleJoinRoom=(code:string)=>enterOnline(()=>onlineGame.join(code));
 
@@ -483,7 +550,11 @@ export function TurnTakeApp({
       ) {
         handleRestartMatch(true);
       } else if (e.key === 'Escape') {
-        if (leaderboardOpen) {
+        if (authModalTab) {
+          setAuthModalTab(null);
+        } else if (progressOpen) {
+          setProgressOpen(false);
+        } else if (leaderboardOpen) {
           setLeaderboardOpen(false);
         } else if (screen === 'playing' || screen === 'gameover') {
           setClashOpen(false);
@@ -496,13 +567,84 @@ export function TurnTakeApp({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
     screen,
+    authModalTab,
+    progressOpen,
     leaderboardOpen,
     handleStartClassic,
     handleToggleMute,
     handleRestartMatch,
   ]);
 
-  if(onlineRoom)return <OnlineRoomView initialRoom={onlineRoom} muted={muted} onToggleMute={handleToggleMute} onExit={()=>{setOnlineRoom(null);window.history.replaceState(null,'','/');}} />;
+  const syncRegisteredProfile = useCallback(
+    async (avatarId: AvatarId, nextPublicLeaderboard: boolean) => {
+      if (!account?.registered || !account.username) return;
+      const epoch = authEpochRef.current;
+      setAccount((prev) =>
+        prev?.registered ? { ...prev, avatarId, publicLeaderboard: nextPublicLeaderboard } : prev
+      );
+      try {
+        await onlineGame.profile({
+          name: account.username,
+          avatarId,
+          publicLeaderboard: nextPublicLeaderboard,
+        });
+        if (authEpochRef.current === epoch) {
+          setRoomError(null);
+        }
+      } catch (err) {
+        if (authEpochRef.current === epoch) {
+          setRoomError(err instanceof Error ? err.message : 'Unable to save profile setting.');
+        }
+      }
+    },
+    [account]
+  );
+
+  const refreshAccountSession = useCallback(() => {
+    const epoch = authEpochRef.current;
+    void accountAuth
+      .session()
+      .then((fresh) => {
+        if (authEpochRef.current === epoch && fresh.registered) {
+          setAccount(fresh);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleAuthSuccess = useCallback(
+    (nextAccount: AccountSession) => {
+      authEpochRef.current += 1;
+      setAccount(nextAccount);
+      setAuthModalTab(null);
+      clearPendingCaptcha();
+      setRoomError(null);
+      if (nextAccount.registered && nextAccount.username) {
+        setPlayerName(nextAccount.username);
+        if (nextAccount.avatarId) setPlayerAvatar(nextAccount.avatarId);
+        setPublicLeaderboard(Boolean(nextAccount.publicLeaderboard));
+      }
+    },
+    [clearPendingCaptcha]
+  );
+
+  const handleLogout = useCallback(async () => {
+    authEpochRef.current += 1;
+    try {
+      await accountAuth.logout();
+    } catch {
+      // Ignore network hiccup after clearing client session state.
+    }
+    setAccount({ registered: false });
+    setPlayerName('Player X');
+    setPublicLeaderboard(false);
+    setProgressOpen(false);
+    setRoomError(null);
+  }, []);
+
+  if(onlineRoom)return <OnlineRoomView initialRoom={onlineRoom} muted={muted} onToggleMute={handleToggleMute} onExit={()=>{setOnlineRoom(null);window.history.replaceState(null,'','/');if(account?.registered){refreshAccountSession();}}} />;
+
+  const captchaSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() || null;
 
   return (
     <MotionConfig reducedMotion="user">
@@ -516,8 +658,28 @@ export function TurnTakeApp({
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
           >
             <LobbyScreen
+              account={account}
+              onOpenAuth={(tab) => {
+                setRoomError(null);
+                setAuthModalTab(tab);
+              }}
+              onOpenProgress={() => {
+                if (!account?.registered) {
+                  setAuthModalTab('register');
+                  return;
+                }
+                setProgressOpen(true);
+                refreshAccountSession();
+              }}
+              onLogout={() => {
+                void handleLogout();
+              }}
               publicLeaderboard={publicLeaderboard}
-              onPublicLeaderboardChange={setPublicLeaderboard}
+              onPublicLeaderboardChange={(value) => {
+                if (!account?.registered) return;
+                setPublicLeaderboard(value);
+                void syncRegisteredProfile(playerAvatar, value);
+              }}
               inviteCode={initialRoomCode}
               playerName={playerName}
               playerAvatar={playerAvatar}
@@ -527,8 +689,22 @@ export function TurnTakeApp({
               muted={muted}
               roomError={roomError}
               roomBusy={roomBusy}
+              captcha={
+                captchaRequired && captchaSiteKey ? (
+                  <TurnstileChallenge
+                    key={captchaChallengeKey}
+                    siteKey={captchaSiteKey}
+                    onToken={handleCaptchaToken}
+                  />
+                ) : null
+              }
               onPlayerNameChange={setPlayerName}
-              onPlayerAvatarChange={setPlayerAvatar}
+              onPlayerAvatarChange={(avatar) => {
+                setPlayerAvatar(avatar);
+                if (account?.registered) {
+                  void syncRegisteredProfile(avatar, publicLeaderboard);
+                }
+              }}
               onOpponentTypeChange={setLobbyOpponent}
               onBotDifficultyChange={setBotDifficulty}
               onMinigameSelectionChange={setMinigameSelection}
@@ -673,6 +849,23 @@ export function TurnTakeApp({
           />
         )}
       </AnimatePresence>
+
+      {authModalTab && (
+        <AuthModal
+          initialTab={authModalTab}
+          defaultAvatar={playerAvatar}
+          defaultPublicLeaderboard={publicLeaderboard}
+          onSuccess={handleAuthSuccess}
+          onClose={() => setAuthModalTab(null)}
+        />
+      )}
+
+      {progressOpen && account?.registered && (
+        <ProgressModal
+          account={account}
+          onClose={() => setProgressOpen(false)}
+        />
+      )}
     </MotionConfig>
   );
 }
