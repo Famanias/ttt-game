@@ -476,7 +476,12 @@ export function TurnTakeApp({
         setCaptchaRequired(true);
       } else {
         pendingOnlineActionRef.current = null;
-        if (token) setCaptchaChallengeKey((k) => k + 1);
+        if (error instanceof GameError) {
+          // Profile/room API rejection means guest auth already succeeded; unmount CAPTCHA cleanly.
+          setCaptchaRequired(false);
+        } else if (token) {
+          setCaptchaChallengeKey((k) => k + 1);
+        }
         setRoomError(error instanceof Error?error.message:'Unable to connect.');
       }
     } finally{roomBusyRef.current=false;setRoomBusy(false);}

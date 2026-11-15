@@ -390,4 +390,33 @@ describe('Turnstile CAPTCHA UI behavior', () => {
     assert.ok(container.querySelector('[role="dialog"]'), 'Local Clash minigame should launch without CAPTCHA');
     assert.equal(guestCalls, 1);
   });
+
+  test('post-auth API error unmounts TurnstileChallenge so authenticated guest is not re-challenged', async () => {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ error: { code: 'NAME_TAKEN' } }), { status: 409 })) as unknown as typeof fetch;
+    authStub = {
+      getUser: async () => ({ data: { user: null }, error: null }),
+      signInAnonymously: async () => ({ data: { user: { id: 'anon-ok' } }, error: null }),
+    };
+
+    await act(async () => {
+      root!.render(React.createElement(TurnTakeApp));
+    });
+
+    await act(async () => {
+      clickButton(container, 'Classic Room');
+      await new Promise((r) => setTimeout(r, 15));
+    });
+
+    assert.equal(renderCalls.length, 1);
+    const { id, opts } = renderCalls[0];
+
+    await act(async () => {
+      opts.callback?.('accepted-token');
+      await new Promise((r) => setTimeout(r, 15));
+    });
+
+    assert.equal(removedIds.includes(id), true);
+    assert.match(container.textContent ?? '', /That display name is taken/);
+  });
 });
