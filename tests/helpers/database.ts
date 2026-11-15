@@ -2,7 +2,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFile, readdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 
-export const USERS = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333'];
+export const USERS = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-444444444444'];
 
 export async function database() {
   const db = new PGlite();
@@ -45,8 +45,22 @@ export function command(payload: Record<string, unknown> = {}) {
   return { clientCommandId: randomUUID(), ...payload };
 }
 
-export async function profile(db: PGlite, user: string, name: string) {
-  return request(db, user, 'profile', '', command({ name, avatarId: 'orb-bot', publicLeaderboard: true }));
+export async function profile(db: PGlite, user: string, name: string, publicLeaderboard = false) {
+  return request(db, user, 'profile', '', command({ name, avatarId: 'orb-bot', publicLeaderboard }));
+}
+
+export async function register(
+  db: PGlite,
+  user: string,
+  username: string,
+  publicLeaderboard = false,
+  guestUserId: string | null = null
+) {
+  const { rows } = await db.query<{ result: Record<string, any> }>(
+    'select public.auth_complete_registration($1,$2,$3,$4,$5) as result',
+    [user, username, 'orb-bot', publicLeaderboard, guestUserId]
+  );
+  return rows[0].result;
 }
 
 export async function room(db: PGlite, mode = 'classic') {

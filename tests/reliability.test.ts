@@ -1,10 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { database, request, command, startMatch, profile, USERS } from './helpers/database';
+import { database, request, command, startMatch, profile, register, USERS } from './helpers/database';
 
 test('stats finalize once, opt-in leaderboard is minimal and authenticated history persists',async()=>{
   const db=await database();try{
     let r=await startMatch(db);
+    await register(db,USERS[0],'Alpha',true);
+    await register(db,USERS[1],'Beta',true);
+    await register(db,USERS[2],'Gamma',true);
     for(const [actor,cell] of [[0,0],[1,3],[0,1],[1,4],[0,2]])r=(await request(db,USERS[actor],'move',r.code,command({expectedVersion:r.match.version,cellIndex:cell}))).room;
     await db.query("select private.finish_match($1,'X','retry')",[r.match.id]);
     const stats=(await db.query<{classic_wins:number;classic_losses:number}>('select classic_wins,classic_losses from private.player_stats where user_id=$1',[USERS[0]])).rows[0];

@@ -34,13 +34,16 @@ import { OutcomeModal } from './OutcomeModal';
 import { WaitingRoomScreen } from './WaitingRoomScreen';
 import { OnlineRoomView } from './OnlineRoomView';
 import { TurnstileChallenge } from './TurnstileChallenge';
-import { onlineGame, ensureGuest, GameError } from '@/lib/services/online-game';
+import { AuthModal, type AuthModalTab } from './AuthModal';
+import { ProgressModal } from './ProgressModal';
+import { accountAuth, onlineGame, ensureGuest, GameError } from '@/lib/services/online-game';
 import { useLeaderboard } from '@/hooks/use-leaderboard';
-import type { OnlineRoom } from '@/lib/online/contracts';
+import type { AccountSession, OnlineRoom } from '@/lib/online/contracts';
 
 interface TurnTakeAppProps {
   initialAutostart?: boolean;
   initialRoomCode?: string | null;
+  initialAccount?: AccountSession | null;
 }
 
 const DEFAULT_BOT_PROFILE: PlayerProfile = {
@@ -56,6 +59,7 @@ const DEFAULT_P2_PROFILE: PlayerProfile = {
 export function TurnTakeApp({
   initialAutostart = false,
   initialRoomCode = null,
+  initialAccount = null,
 }: TurnTakeAppProps) {
   const [screen, setScreen] = useState<GameScreen>(
     initialAutostart ? 'playing' : 'title'
@@ -68,8 +72,20 @@ export function TurnTakeApp({
   const [minigameSelection, setMinigameSelection] =
     useState<MinigameSelection>('rotating');
 
-  const [playerName, setPlayerName] = useState('Player X');
-  const [playerAvatar, setPlayerAvatar] = useState<AvatarId>('orb-bot');
+  const [account, setAccount] = useState<AccountSession | null>(initialAccount);
+  const [authModalTab, setAuthModalTab] = useState<AuthModalTab | null>(null);
+  const [progressOpen, setProgressOpen] = useState(false);
+
+  const [playerName, setPlayerName] = useState(
+    initialAccount?.registered && initialAccount.username
+      ? initialAccount.username
+      : 'Player X'
+  );
+  const [playerAvatar, setPlayerAvatar] = useState<AvatarId>(
+    initialAccount?.registered && initialAccount.avatarId
+      ? initialAccount.avatarId
+      : 'orb-bot'
+  );
 
   const [board, setBoard] = useState<BoardState>(createEmptyBoard);
   const [startingMark, setStartingMark] = useState<Mark>('X');
@@ -100,7 +116,9 @@ export function TurnTakeApp({
   } | null>(null);
 
   const [onlineRoom,setOnlineRoom]=useState<OnlineRoom|null>(null);
-  const [publicLeaderboard,setPublicLeaderboard]=useState(false);
+  const [publicLeaderboard,setPublicLeaderboard]=useState(
+    Boolean(initialAccount?.registered && initialAccount.publicLeaderboard)
+  );
   // Room multiplayer state
   const [room, setRoom] = useState<RoomState | null>(null);
   const [localRoomMark, setLocalRoomMark] = useState<Mark>('X');
@@ -111,6 +129,7 @@ export function TurnTakeApp({
   const captchaTokenRef = useRef<string | null>(null);
   const pendingOnlineActionRef = useRef<(() => Promise<{ room: OnlineRoom }>) | null>(null);
   const roomBusyRef = useRef(false);
+  const authEpochRef = useRef(0);
   const enterOnlineRef = useRef<(action: () => Promise<{ room: OnlineRoom }>, tokenOverride?: string) => Promise<void>>(
     async () => {}
   );
@@ -531,7 +550,11 @@ export function TurnTakeApp({
       ) {
         handleRestartMatch(true);
       } else if (e.key === 'Escape') {
-        if (leaderboardOpen) {
+        if (authModalTab) {
+          setAuthModalTab(null);
+        } else if (progressOpen) {
+          setProgressOpen(false);
+        } else if (leaderboardOpen) {
           setLeaderboardOpen(false);
         } else if (screen === 'playing' || screen === 'gameover') {
           setClashOpen(false);
@@ -544,13 +567,82 @@ export function TurnTakeApp({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
     screen,
+    authModalTab,
+    progressOpen,
     leaderboardOpen,
     handleStartClassic,
     handleToggleMute,
     handleRestartMatch,
   ]);
 
-  if(onlineRoom)return <OnlineRoomView initialRoom={onlineRoom} muted={muted} onToggleMute={handleToggleMute} onExit={()=>{setOnlineRoom(null);window.history.replaceState(null,'','/');}} />;
+  const syncRegisteredProfile = useCallback(
+    async (avatarId: AvatarId, nextPublicLeaderboard: boolean) => {
+      if (!account?.registered || !account.username) return;
+      const epoch = authEpochRef.current;
+      setAccount((prev) =>
+        prev?.registered ? { ...prev, avatarId, publicLeaderboard: nextPublicLeaderboard } : prev
+      );
+      try {
+        await onlineGame.profile({
+          name: account.username,
+          avatarId,
+          publicLeaderboard: nextPublicLeaderboard,
+        });
+        if (authEpochRef.current === epoch) {
+          setRoomError(null);
+        }
+      } catch (err) {
+        if (authEpochRef.current === epoch) {
+          setRoomError(err instanceof Error ? err.message : 'Unable to save profile setting.');
+        }
+      }
+    },
+    [account]
+  );
+
+  const refreshAccountSession = useCallback(() => {
+    const epoch = authEpochRef.current;
+    void accountAuth
+      .session()
+      .then((fresh) => {
+        if (authEpochRef.current === epoch && fresh.registered) {
+          setAccount(fresh);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleAuthSuccess = useCallback(
+    (nextAccount: AccountSession) => {
+      authEpochRef.current += 1;
+      setAccount(nextAccount);
+      setAuthModalTab(null);
+      clearPendingCaptcha();
+      setRoomError(null);
+      if (nextAccount.registered && nextAccount.username) {
+        setPlayerName(nextAccount.username);
+        if (nextAccount.avatarId) setPlayerAvatar(nextAccount.avatarId);
+        setPublicLeaderboard(Boolean(nextAccount.publicLeaderboard));
+      }
+    },
+    [clearPendingCaptcha]
+  );
+
+  const handleLogout = useCallback(async () => {
+    authEpochRef.current += 1;
+    try {
+      await accountAuth.logout();
+    } catch {
+      // Ignore network hiccup after clearing client session state.
+    }
+    setAccount({ registered: false });
+    setPlayerName('Player X');
+    setPublicLeaderboard(false);
+    setProgressOpen(false);
+    setRoomError(null);
+  }, []);
+
+  if(onlineRoom)return <OnlineRoomView initialRoom={onlineRoom} muted={muted} onToggleMute={handleToggleMute} onExit={()=>{setOnlineRoom(null);window.history.replaceState(null,'','/');if(account?.registered){refreshAccountSession();}}} />;
 
   const captchaSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() || null;
 
@@ -566,8 +658,28 @@ export function TurnTakeApp({
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
           >
             <LobbyScreen
+              account={account}
+              onOpenAuth={(tab) => {
+                setRoomError(null);
+                setAuthModalTab(tab);
+              }}
+              onOpenProgress={() => {
+                if (!account?.registered) {
+                  setAuthModalTab('register');
+                  return;
+                }
+                setProgressOpen(true);
+                refreshAccountSession();
+              }}
+              onLogout={() => {
+                void handleLogout();
+              }}
               publicLeaderboard={publicLeaderboard}
-              onPublicLeaderboardChange={setPublicLeaderboard}
+              onPublicLeaderboardChange={(value) => {
+                if (!account?.registered) return;
+                setPublicLeaderboard(value);
+                void syncRegisteredProfile(playerAvatar, value);
+              }}
               inviteCode={initialRoomCode}
               playerName={playerName}
               playerAvatar={playerAvatar}
@@ -587,7 +699,12 @@ export function TurnTakeApp({
                 ) : null
               }
               onPlayerNameChange={setPlayerName}
-              onPlayerAvatarChange={setPlayerAvatar}
+              onPlayerAvatarChange={(avatar) => {
+                setPlayerAvatar(avatar);
+                if (account?.registered) {
+                  void syncRegisteredProfile(avatar, publicLeaderboard);
+                }
+              }}
               onOpponentTypeChange={setLobbyOpponent}
               onBotDifficultyChange={setBotDifficulty}
               onMinigameSelectionChange={setMinigameSelection}
@@ -732,6 +849,23 @@ export function TurnTakeApp({
           />
         )}
       </AnimatePresence>
+
+      {authModalTab && (
+        <AuthModal
+          initialTab={authModalTab}
+          defaultAvatar={playerAvatar}
+          defaultPublicLeaderboard={publicLeaderboard}
+          onSuccess={handleAuthSuccess}
+          onClose={() => setAuthModalTab(null)}
+        />
+      )}
+
+      {progressOpen && account?.registered && (
+        <ProgressModal
+          account={account}
+          onClose={() => setProgressOpen(false)}
+        />
+      )}
     </MotionConfig>
   );
 }

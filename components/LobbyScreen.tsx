@@ -4,18 +4,24 @@ import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import {
   ArrowRight,
+  BarChart3,
   Bot,
   Check,
   Crosshair,
   Flame,
   Link2,
+  Lock,
+  LogIn,
+  LogOut,
   Play,
   Swords,
   Trophy,
+  UserPlus,
   Users,
   Volume2,
   VolumeX,
 } from 'lucide-react';
+import type { AccountSession } from '@/lib/online/contracts';
 import {
   AVATAR_OPTIONS,
   MINIGAME_META,
@@ -32,6 +38,10 @@ import type {
 import { TurnTakeLogo } from './TurnTakeLogo';
 
 interface LobbyScreenProps {
+  account?: AccountSession | null;
+  onOpenAuth?: (tab: 'login' | 'register') => void;
+  onOpenProgress?: () => void;
+  onLogout?: () => void;
   publicLeaderboard: boolean;
   onPublicLeaderboardChange: (value:boolean)=>void;
   inviteCode?: string|null;
@@ -139,6 +149,10 @@ function MinigameHoverBadge({
 }
 
 export function LobbyScreen({
+  account,
+  onOpenAuth,
+  onOpenProgress,
+  onLogout,
   publicLeaderboard,onPublicLeaderboardChange,inviteCode,
   playerName,
   playerAvatar,
@@ -310,7 +324,50 @@ export function LobbyScreen({
         >
           <TurnTakeLogo size="lg" />
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {account?.registered ? (
+              <>
+                {onOpenProgress && (
+                  <button
+                    type="button"
+                    onClick={onOpenProgress}
+                    className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-xl text-sm font-medium bg-[#151B28]/90 text-[#43DDE6] border border-[#43DDE6]/40 hover:border-[#43DDE6] hover:bg-[#1B2334] active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#43DDE6]"
+                  >
+                    <BarChart3 className="w-4 h-4 shrink-0" />
+                    <span>{account.username}</span>
+                  </button>
+                )}
+                {onLogout && (
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-xl text-sm font-medium bg-[#151B28]/90 text-[#CBD5E1] border border-[#65737C]/40 hover:border-[#FF795E]/70 hover:text-[#F4F4F0] hover:bg-[#1B2334] active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF795E]"
+                  >
+                    <LogOut className="w-4 h-4 shrink-0" />
+                    Log Out
+                  </button>
+                )}
+              </>
+            ) : onOpenAuth ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onOpenAuth('login')}
+                  className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-xl text-sm font-medium bg-[#151B28]/90 text-[#F4F4F0] border border-[#65737C]/40 hover:border-[#43DDE6]/70 hover:bg-[#1B2334] active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#43DDE6]"
+                >
+                  <LogIn className="w-4 h-4 text-[#43DDE6]" />
+                  Log In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenAuth('register')}
+                  className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-xl text-sm font-semibold bg-[#43DDE6]/15 text-[#43DDE6] border border-[#43DDE6]/50 hover:bg-[#43DDE6]/25 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#43DDE6]"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Register
+                </button>
+              </>
+            ) : null}
             <button
               type="button"
               onClick={onOpenLeaderboard}
@@ -354,23 +411,36 @@ export function LobbyScreen({
               htmlFor="player-name-input"
               className="text-sm font-medium text-[#94A3B8] whitespace-nowrap"
             >
-              Player Name
+              {account?.registered ? 'Account' : 'Player Name'}
             </label>
-            <input
-              id="player-name-input"
-              type="text"
-              maxLength={18}
-              value={playerName}
-              onChange={(e) => onPlayerNameChange(e.target.value)}
-              placeholder="Player X"
-              autoComplete="off"
-              data-1p-ignore
-              data-lpignore="true"
-              data-bwignore="true"
-              data-protonpass-ignore="true"
-              suppressHydrationWarning
-              className="w-full sm:w-56 min-h-[44px] px-3.5 py-2 rounded-xl bg-[#10141D] border border-[#65737C]/40 text-sm sm:text-[15px] font-medium text-[#F4F4F0] placeholder:text-[#65737C] focus-visible:outline-none focus-visible:border-[#43DDE6] focus-visible:ring-2 focus-visible:ring-[#43DDE6]/50 transition-colors"
-            />
+            <div className="flex items-center gap-2.5">
+              <input
+                id="player-name-input"
+                type="text"
+                maxLength={18}
+                readOnly={Boolean(account?.registered)}
+                value={playerName}
+                onChange={(e) => {
+                  if (!account?.registered) onPlayerNameChange(e.target.value);
+                }}
+                placeholder="Player X"
+                autoComplete="off"
+                data-1p-ignore
+                data-lpignore="true"
+                data-bwignore="true"
+                data-protonpass-ignore="true"
+                suppressHydrationWarning
+                className={[
+                  'w-full sm:w-52 min-h-[44px] px-3.5 py-2 rounded-xl bg-[#10141D] border text-sm sm:text-[15px] font-medium text-[#F4F4F0] placeholder:text-[#65737C] focus-visible:outline-none focus-visible:border-[#43DDE6] focus-visible:ring-2 focus-visible:ring-[#43DDE6]/50 transition-colors',
+                  account?.registered ? 'border-[#43DDE6]/40 opacity-90' : 'border-[#65737C]/40',
+                ].join(' ')}
+              />
+              {!account?.registered && onOpenAuth && (
+                <span className="hidden sm:inline text-xs text-[#94A3B8]">
+                  Guest mode
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
@@ -699,10 +769,31 @@ export function LobbyScreen({
                 join an active match below.
               </p>
 
-              <label className="flex items-center gap-2 min-h-[44px] text-xs text-[#CBD5E1]">
-                <input type="checkbox" className="accent-[#43DDE6]" checked={publicLeaderboard} onChange={e=>onPublicLeaderboardChange(e.target.checked)}/>
-                Show my name and avatar in public casual rankings
-              </label>
+              {account?.registered ? (
+                <label className="flex items-center gap-2 min-h-[44px] text-xs text-[#CBD5E1] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="accent-[#43DDE6]"
+                    checked={publicLeaderboard}
+                    onChange={(e) => onPublicLeaderboardChange(e.target.checked)}
+                  />
+                  Show my name and avatar in public casual rankings
+                </label>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2 min-h-[44px] text-xs text-[#94A3B8]">
+                  <Lock className="w-3.5 h-3.5 text-[#65737C] shrink-0" />
+                  <span>Create an account to save progress and join public rankings.</span>
+                  {onOpenAuth && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenAuth('register')}
+                      className="text-[#43DDE6] underline hover:text-[#62e6ed] cursor-pointer"
+                    >
+                      Register
+                    </button>
+                  )}
+                </div>
+              )}
               {inviteCode&&<button disabled={roomBusy} onClick={()=>onJoinRoom(inviteCode)} className="min-h-[44px] text-sm text-[#43DDE6] underline">Join invite {inviteCode}</button>}
               <div className="grid grid-cols-2 gap-3">
                 <button
