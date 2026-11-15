@@ -1,42 +1,33 @@
 # Implementation status
 
-Implementation branch: `Famanias/turn-take-backend`, isolated Orca worktree `E:/orca/workspaces/ttt-game/turn-take-backend`. Original main checkout and user lockfile edits are preserved. No merge, push, remote migration or deployment has been performed.
+Branch: `Famanias/deployment` (deployed live at [https://ttt-game-sooty.vercel.app](https://ttt-game-sooty.vercel.app)).
 
 ## Delivered code versus verification
 
-| Milestone | Delivered | Evidence / outstanding |
+| Milestone / Phase | Delivered | Evidence / status |
 |---|---|---|
-| M0 | Actual repo audit, preserved baseline/branch, local regression coverage | Baseline 7 tests; expanded local rules, bots, wins/draw and streak checks. Original font build problem recorded and subsequently fixed. |
-| M1 | SSR guest clients, validated profile/room API, migrations/RLS, secure private seats, links | PostgreSQL/PGlite tests pass for private reads, direct writes, two seats, replay, expiry and failed-guess limits. Hosted Auth/join remains unverified. |
-| M2 | Readiness/countdown, Classic commands, private notifications/presence, reconciliation, fresh-match rematches | SQL rules/versions/terminal locks/rematches tested. Hosted Realtime and two-cookie-jar online browser test pending configuration. |
-| M3 | Shared challenge configs, three online renderer adaptations, raw-trace scoring, ties, streaks, claims, auto-placement, pause/restart | SQL integration verifies configs/hidden attempts/scoring/bonus/terminal/deadline cases. Both-device live minigame play pending. |
-| M4 | Atomic finalized-only stats, opted-in public mode rankings, history, liveness/revocation fixes, owner sweep | SQL and local browser verification below. Cron function tested; scheduler/hosted races not run. |
-| M5 | Supabase config and migration/Realtime/Cron/Vercel handoff | Deployment instructions and actual limitations documented. No remote project, secrets or authorization to publish; no public URL. |
+| M0 | Actual repo audit, preserved baseline, expanded local rules/bots/streak checks, self-hosted fonts | Verified locally and deployed |
+| M1 | SSR guest/account clients, validated profile/room API, SQL authority & RLS, private two-seat rooms, invite codes | PGlite SQL tests + hosted staging smoke + production live checks |
+| M2 | Readiness toggle UI, heartbeat-backed countdown/ready start (`20261115103000`), Classic commands, private Broadcast/Presence, reconciliation, rematches | SQL, React DOM, hosted smoke, and two-browser Playwright pass |
+| M3 | Shared challenge configs, three online renderer adaptations, raw-trace scoring, ties/sudden death, streak bonuses, claims/auto-place, bounded reload restarts | SQL integration + staging live Clash smoke |
+| M4 | Atomic finalized stats, registered opt-in leaderboard + match history (`20261115120000`), optional username+password accounts with simple password support (`12345678`) and atomic guest carry-over | `tests/auth.test.ts`, `tests/auth-ui.test.tsx`, `scripts/verify-hosted.ts`, `e2e/online.pw.ts`, Preview & Production live checks |
+| M5 / Rollout | Staging (`ffsvimzxnxqbogzvuupi`) & Production (`yeehqcdayrygwdhyyzfc`) Supabase + Vercel (`team-e2117dad/ttt-game`), on-demand Turnstile CAPTCHA on Prod, `5s` Cron, rollback drill | Staging Preview + Live Production verified (`HTTP 200`); operational caveats recorded below |
 
-No in-memory networking fallback remains. No local/bot leaderboard POST remains. Unconfigured online rooms and leaderboard show explicit unavailable/error states. Online code is implemented, but it is **not claimed to be a verified hosted deployment**.
+No in-memory networking fallback remains. Local 2P/Bot/Clash modes work without login; online rooms work as a guest without creating an account; optional registration unlocks saving progress/match history and opting onto public rankings while carrying over prior browser guest stats/history.
 
-## Local verification
+## Verification summary (current branch)
 
-- `bun install --frozen-lockfile --ignore-scripts`: passed; lockfile stable.
-- `bun test`: **39 passed, 0 failed** across nine files. Actual SQL runs in PGlite; Auth/transport edges are stand-ins as documented.
-- `bun run typecheck`: passed.
-- `bun run lint`: **0 errors, 20 warnings**, all existing image-element warnings. No new hook warnings remain.
-- `bun run build`: passed with self-hosted original font families and standard Next.js output.
-- `bun run test:e2e`: **20 passed, 2 skipped**. Desktop/mobile cases cover offline local Classic win/reset/draw, all bot difficulties, all three local minigames, profile/avatar/sound and honest unconfigured online/rankings errors. Two hosted Classic cases were explicitly skipped because Supabase is absent.
-- `bun audit --production --json`: `{}` (no production advisories). All-dependency audit: five moderate development-only advisory groups (`@opentelemetry/core`, `glob`, `minimatch`, `postcss-selector-parser`, `uuid`); no high/critical findings. No forced major upgrades/downgrades were applied. The compatible PostCSS override addresses the original transitive high findings.
-- Orca browser loaded the real production lobby: DM Sans active, zero failed images, no horizontal overflow at inspected desktop size. Mobile geometry is covered by Playwright. Original `public/assets/` images are unchanged.
+- `bun test`: **62 passed, 0 failed** across 14 test files (`auth-ui.test.tsx`, `auth.test.ts`, `captcha-ui.test.tsx`, `clash.test.ts`, `classic.test.ts`, `contracts.test.ts`, `guest-auth.test.ts`, `online-countdown.test.ts`, `online-ui.test.tsx`, `reliability.test.ts`, `review-regressions.test.ts`, `rooms.test.ts`, `target-input.test.ts`, `lib/game/rules.test.ts`).
+- `bunx tsc --noEmit`: passed (`0` errors).
+- `bunx eslint .`: **0 errors, 21 warnings** (existing `@next/next/no-img-element` warnings).
+- `bunx next build`: passed (`Next.js 15.5.29` production build).
+- `bun run test:hosted` (against `turn-take-staging`): passed both Classic and Clash, including guest leaderboard gating and `auth_complete_registration` carry-over verification.
+- `RUN_HOSTED_E2E=1 bunx playwright test` (against `turn-take-staging`): **22 passed, 2 skipped** (unconfigured-error specs skip when hosted env is present); covers both `[desktop]` and `[mobile]` local games, online room invite/ready/Classic/rematch, and `12345678` registration, progress modal, leaderboard opt-in, logout, login, and reload persistence.
+- `bunx supabase db advisors --linked` (`turn-take-prod`, `yeehqcdayrygwdhyyzfc`): `0` ERROR findings (`WARN` notices limited to intentional public read-only `public.game_leaderboard`, `realtime.messages` anonymous channel policy, `pg_cron` metadata tables, and `auth_leaked_password_protection` disabled on Free plan).
 
-## Independent final review
+## Known operational caveats & deferred items
 
-A fresh gpt-6-astra reviewer inspected the whole branch. Five Important findings were reproduced and fixed in one regression-tested pass: same-version submissions, ordinary Target Rush late/edge taps, reusable countdown cancellation, fast reload recovery, and offline/hanging local return. The pass also covers a submission committing during reload without losing live subscription. New SQL and real React DOM/hook tests bring the suite to 39; network boundaries in React tests are mocked explicitly, while PostgreSQL transition tests execute the actual migrations.
-
-Deferred minor: `longest_streak` currently measures the two-win bonus-counter peak, so it cannot exceed two. Tracking the uninterrupted win run separately is follow-up work; the locked bonus mechanic is unchanged. Hosted validation and public deployment remain external blockers below.
-
-## Remaining external blockers
-
-1. Create/select Supabase project, configure the public URL/key locally and in Vercel, and enable/rate-limit anonymous auth.
-2. Apply reviewed migrations and run Supabase advisors; require private Realtime, then verify allowed/denied subscriptions on the actual service.
-3. Enable/observe Cron. Without it, reconciliation waits for the next read/command when all clients disappear.
-4. Run `bun run test:hosted`, opt-in hosted Playwright, two-device Clash, reload/background throttling and disconnect/slow-network smoke. PGlite does not prove true multi-connection scheduling or hosted service behavior.
-5. Public anonymous-auth CAPTCHA uses on-demand Cloudflare Turnstile (`components/TurnstileChallenge.tsx` paired with `NEXT_PUBLIC_TURNSTILE_SITE_KEY`) during new guest sign-in (`ensureGuest`); existing guests and local 2P/Bot/Clash modes skip CAPTCHA. Configure the matching Turnstile secret only in Supabase Auth after deploying the client token flow, and review guest/history retention with the project owner.
-6. Authorize and perform Vercel deployment, then verify the real public URL. No deployment has been attempted.
+1. **Free-tier database backups:** Supabase Free plan for `turn-take-prod` (`yeehqcdayrygwdhyyzfc`) has PITR disabled (`backups: []`); schedule manual SQL exports before major schema edits.
+2. **Streak statistic cap:** `longest_streak` tracks the two-win Clash bonus-counter peak (`<= 2`); tracking unbounded consecutive round wins remains a follow-up item.
+3. **Casual rankings trust boundary:** Minigame inputs run in browsers and optional passwords intentionally allow simple 8-character values without email verification/recovery codes; rankings are casual rather than anti-cheat-hardened.
+4. **Live Turnstile boundary:** Automated hosted smoke/Playwright runs target `turn-take-staging` (Turnstile off); Production enforces Turnstile (`0x4AAAAAAGBXl2sZfeZyquBe`), confirmed via live unchallenged `POST /api/auth/register` returning `400 CAPTCHA_REQUIRED`.

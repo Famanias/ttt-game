@@ -27,25 +27,31 @@ Non-secret operational record for the TURN//TAKE Vercel + Supabase rollout follo
 
 | Target | Project / Account Ref | URL / Deployment ID | Migration / Cron Status | Auth / Realtime / CAPTCHA | Evidence Status |
 |---|---|---|---|---|---|
-| Staging | Not yet selected/created (pending owner selection in Task 2) | Unavailable | Not applied | Not configured | Pending Task 2–5 |
-| Production | Not yet selected/created (pending owner confirmation in Task 2 / Task 7) | Unavailable | Not applied | Not configured | Pending Task 7–9 |
+| Staging | `turn-take-staging` (`ffsvimzxnxqbogzvuupi`, `Famanias's Org`) | `dpl_Ea9ueQArpQe1HKS4rFxJUwwv3Ska` (`https://ttt-game-3abshif3q-team-e2117dad.vercel.app`, alias `https://ttt-game-staging-team-e2117dad.vercel.app`) | All 7 local/remote migrations match 1:1 (`20261114134954`–`20261115120000`); `turn-take-deadlines` Cron running (`5s`) | Anonymous auth + `mailer_autoconfirm=true` + min password length `8` (no symbol rule); private Realtime; Turnstile off on staging for automated checks; `SUPABASE_SERVICE_ROLE_KEY` set in Vercel `Preview` | Verified (`bun run test:hosted`, Playwright `22 pass / 2 unconfigured-skip`, cloud Preview auth roundtrip, and Task 9 rollback drill) |
+| Production | `turn-take-prod` (`yeehqcdayrygwdhyyzfc`, `Famanias's Org`) | `dpl_8b9d1ZsrdttEBpC9ujHAztxCz5zX` (`https://ttt-game-c599r2ki8-team-e2117dad.vercel.app`, live alias `https://ttt-game-sooty.vercel.app`) | All 7 local/remote migrations match 1:1 (`20261114134954`–`20261115120000`); `turn-take-deadlines` Cron running (`5s`); `0` advisor ERRORs | Anonymous auth + `mailer_autoconfirm=true` + min password length `8` (no symbol rule); private Realtime (`private_only: true`); Turnstile enforced (`0x4AAAAAAGBXl2sZfeZyquBe`); `SUPABASE_SERVICE_ROLE_KEY` set in Vercel `Production` | Live & verified (`HTTP 200` on `/`, `/api/auth/session`, `/api/leaderboard`, and `CAPTCHA_REQUIRED` on `/api/auth/register` without Turnstile token) |
 
-## Observed CLI accounts (read-only discovery)
+## Observed CLI accounts (initial baseline discovery)
 
 - **GitHub (`gh`):** authenticated as `Famanias`; remote `origin` = `https://github.com/Famanias/ttt-game.git`.
-- **Vercel CLI (`62.1.0`):** authenticated as `famanias` (team `team-e2117dad`); no `ttt-game` project exists yet.
-- **Supabase CLI (`2.119.0`):** authenticated in org `Highway TMS` (`tgodtfapcbwxggyeajir`), which currently lists two unrelated active projects (`zutshxvbiomqjxkytpyl` and `iiseakiisdhosjoygnfo`). No TURN//TAKE project is linked and `.env.local` does not yet exist.
+- **Vercel CLI (`62.1.0`):** authenticated as `famanias` (team `team-e2117dad`); deployed project `ttt-game` (`prj_7IQX0AeswNkxcxiwy6ihZ3rRhKGy`).
+- **Supabase CLI (`2.119.0`):** `Famanias's Org` (`mlzjigmootxtpmceruaa`) owns `turn-take-staging` (`ffsvimzxnxqbogzvuupi`) and `turn-take-prod` (`yeehqcdayrygwdhyyzfc`, linked in `supabase/.temp/project-ref`).
 
 ## Task checklist status
 
-- **Task 1 (Merged release baseline):** Complete on `f25b4f8`.
-- **Task 2 (Accounts & staging config):** Blocked on owner decisions/authorization (Supabase project capacity/creation or selection, Vercel project target, desired release audience/domain).
-- **Tasks 3–9:** Pending upstream target configuration (note: Task 6 client CAPTCHA implementation + unit/local UI tests can proceed locally once confirmed or in parallel, while hosted validation still requires staging/production targets).
+- **Task 1 (Merged release baseline):** Complete (`f25b4f8`).
+- **Task 2 (Accounts & staging config):** Complete (`turn-take-staging` `ffsvimzxnxqbogzvuupi`, `team-e2117dad/ttt-game`).
+- **Task 3 (Staging DB & security inspection):** Complete (migrations 1:1, 0 advisor ERRORs, private Realtime, `5s` Cron).
+- **Task 4 (Staging multiplayer & hosted verification):** Complete (`verify-hosted.ts` + desktop/mobile Playwright).
+- **Task 5 (Restricted Vercel staging deployment):** Complete (`dpl_FoBuLNemSixij8c3tJi6PE4ED1w6` initial + two-device/slow-network checks).
+- **Task 6 (On-demand Turnstile CAPTCHA gate):** Complete (`04cd9bb`, `0f75678`, staging pass/fail probes).
+- **Task 7 (Production provisioning & restricted build):** Complete (`turn-take-prod` `yeehqcdayrygwdhyyzfc`, Turnstile widget `0x4AAAAAAGBXl2sZfeZyquBe`, Cron active).
+- **Task 8 (Public launch & post-launch improvements):** Complete (live public alias `https://ttt-game-sooty.vercel.app`, ready-button visibility + `20261115103000_heartbeat_ready_start.sql`, simple optional username+password accounts + guest carry-over `20261115120000_user_accounts.sql` deployed to staging and production).
+- **Task 9 (Operations, rollback rehearsal & documentation closeout):** Complete (staging alias rollback drill passed, living docs synced, temporary secrets removed from `.env.local`).
 
-## Rollback target
+## Rollback targets
 
-- **Staging rollback target:** Unavailable (no staging deployment created yet).
-- **Production rollback target:** Unavailable (no production deployment created yet).
+- **Staging rollback target (verified compatible with schema `20261115120000`):** `dpl_Ea9ueQArpQe1HKS4rFxJUwwv3Ska` (`https://ttt-game-3abshif3q-team-e2117dad.vercel.app`), aliased at `https://ttt-game-staging-team-e2117dad.vercel.app`. Controlled failing candidate tested during drill: `https://ttt-game-k9wpo7utn-team-e2117dad.vercel.app`.
+- **Production current & prior targets:** Active compatible production deployment `dpl_8b9d1ZsrdttEBpC9ujHAztxCz5zX` (`https://ttt-game-c599r2ki8-team-e2117dad.vercel.app` -> `https://ttt-game-sooty.vercel.app`). Prior pre-account production build `https://ttt-game-gbt3rmmk3-team-e2117dad.vercel.app` does **not** include `/api/auth/*` routes or `ACCOUNT_REQUIRED` guest UI handling, so production rollback should keep schema compatibility in mind or ship a clean forward fix.
 
 ## Task 2: Staging Environment Provisioning
 - **Supabase Organization:** `Famanias's Org` (`mlzjigmootxtpmceruaa`, Free plan)
@@ -120,3 +126,16 @@ Non-secret operational record for the TURN//TAKE Vercel + Supabase rollout follo
   - Production Aliases: `https://ttt-game-sooty.vercel.app`, `https://ttt-game-team-e2117dad.vercel.app`
   - `Production` env vars set before build: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (`Preview` env vars confirmed unchanged pointing at `ffsvimzxnxqbogzvuupi`).
   - Restricted gate verified prior to Task 8 acceptance: unauthenticated requests to all three production URLs return HTTP `302` (`vercel.com/sso-api`, `ssoProtection.deploymentType = "all"`); protection-bypass inspection verified all 12 static chunks carry production Supabase URL, publishable key, and Turnstile sitekey (`foundStagingUrl: false`), and `/api/leaderboard` returned `{"mode":"clash","casual":true,"entries":[]}`.
+
+## Task 8 & Post-Launch Updates: Live Public Release + Simple Accounts
+
+- **Public Access & UI Enhancements:** Opened live Production at `https://ttt-game-sooty.vercel.app`, added clear waiting-room Ready/Not Ready indicator states, and applied `20261115103000_heartbeat_ready_start.sql`.
+- **Optional Accounts & Guest Carry-Over:** Applied `20261115120000_user_accounts.sql` to `turn-take-staging` (`ffsvimzxnxqbogzvuupi`) first, then `turn-take-prod` (`yeehqcdayrygwdhyyzfc`). Enabled `mailer_autoconfirm: true`, `password_min_length: 8`, empty character-class rules (accepting simple passwords such as `12345678`) on both projects, keeping Turnstile active on Production (`0x4AAAAAAGBXl2sZfeZyquBe`).
+- **Vercel Secrets & Builds:** Stored environment-specific `SUPABASE_SERVICE_ROLE_KEY` Secrets in Vercel `Preview` (staging) and `Production` (production). Verified Staging Preview `dpl_Ea9ueQArpQe1HKS4rFxJUwwv3Ska` (`https://ttt-game-3abshif3q-team-e2117dad.vercel.app`) end-to-end (`register` -> `session` -> `logout` -> `login`), `bun run test:hosted`, and `RUN_HOSTED_E2E=1 bunx playwright test` (22 passed, 2 skipped), then deployed Production `dpl_8b9d1ZsrdttEBpC9ujHAztxCz5zX` (`https://ttt-game-sooty.vercel.app`, `HTTP 200`, `CAPTCHA_REQUIRED` enforced cleanly on unchallenged `POST /api/auth/register`).
+
+## Task 9: Operations, Rollback Rehearsal & Cleanup
+
+- **Staging Rollback Drill:** Pointed staging alias `https://ttt-game-staging-team-e2117dad.vercel.app` temporarily to controlled failing candidate `ttt-game-k9wpo7utn-team-e2117dad.vercel.app` (confirming `/api/auth/register` failure), restored `ttt-game-3abshif3q-team-e2117dad.vercel.app`, and verified `/` (`HTTP 200`), `/api/auth/register` (`registered: true`), and persisted staging leaderboard integrity (`Smoke0-wh77uug` intact).
+- **Advisor Audit (`turn-take-prod`):** Verified `supabase db advisors --linked` reports `0` ERROR findings after all 7 migrations; `public.auth_*` RPCs remain restricted to `service_role`.
+- **Operations & Monitoring:** Monitor Supabase Auth quota/growth (`anonymous_users`, failed logins/registrations in `private.auth_rate_limits`), `cron.job_run_details` for `turn-take-deadlines`, and Vercel Function logs for `ttt-game`. Cleanup of stale receipts/rate counters runs automatically inside `private.sweep_deadlines()`, while user deletion respects match/profile FKs via Supabase admin workflows.
+- **Secret Hygiene:** Removed temporary management/DB secrets (`ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROD_DB_PASSWORD`, staging `SUPABASE_SERVICE_ROLE_KEY`) from `.env.local` and deleted temporary `.superpowers/sdd/` scratch files.
