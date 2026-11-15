@@ -52,3 +52,11 @@ See [implementation status](docs/IMPLEMENTATION_STATUS.md), [database ownership/
 ## Fonts and dependencies
 
 Outfit, DM Sans and JetBrains Mono are self-hosted under `public/fonts/`, with their SIL OFL licenses. This keeps the existing font families and removes build-time Google Fonts requests. The PostCSS override patches Next's transitive copy without a Next.js major upgrade. The deferred longest-streak statistic currently measures bonus-counter progress (maximum two), rather than an uninterrupted run. Remaining development-only audit findings and deployment limitations are recorded in the status document.
+
+## AI Disclosure
+
+This repository has been developed with the assistance of the following LLMs:
+- GPT-6 via ChatGPT.com for planning and research
+- Nano Banana 2.1 via Google Flow for image and asset generation
+- Gemini 4 Hydrogen Max via Google AI Studio for frontend implementation
+- Gemini 4 Hydrogen xHigh via Antigravity CLI for full backend and deployment implementation
