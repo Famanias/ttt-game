@@ -60,3 +60,5 @@ This repository has been developed with the assistance of the following LLMs:
 - Nano Banana 2.1 via Google Flow for image and asset generation
 - Gemini 4 Hydrogen Max via Google AI Studio for frontend implementation
 - Gemini 4 Hydrogen xHigh via Antigravity CLI for full backend and deployment implementation
+
+## [MIT License](LICENSE)
