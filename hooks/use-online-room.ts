@@ -30,10 +30,31 @@ export function useOnlineRoom(initial:OnlineRoom) {
   },[initial.code,accept]);
   const send=useCallback(async(action:Mutation,payload:Record<string,unknown>={})=>{
     if(sending.current)return false;
-    sending.current=true;setBusy(true);setError(null);const sent=Date.now();
-    try{const data=await onlineGame.command(latest.current,action,payload);if(data.room)accept(data.room,sent);return true;}
-    catch(err){await refresh();if(active.current)setError(err instanceof Error?err.message:'Command failed.');return false;}
-    finally{sending.current=false;if(active.current)setBusy(false);}
+    sending.current=true;setBusy(true);setError(null);
+    const runCommand=async(target:OnlineRoom)=>{
+      const sent=Date.now();
+      const data=await onlineGame.command(target,action,payload);
+      if(data.room)accept(data.room,sent);
+    };
+    try{
+      await runCommand(latest.current);
+      return true;
+    }catch(err){
+      const refreshed=await refresh();
+      const errCode=typeof err==='object'&&err!==null&&'code' in err?err.code:null;
+      if(errCode==='STALE_VERSION'&&(action==='ready'||action==='rematch')&&refreshed){
+        try{
+          await runCommand(refreshed);
+          return true;
+        }catch(retryErr){
+          await refresh();
+          if(active.current)setError(retryErr instanceof Error?retryErr.message:'Command failed.');
+          return false;
+        }
+      }
+      if(active.current)setError(err instanceof Error?err.message:'Command failed.');
+      return false;
+    }finally{sending.current=false;if(active.current)setBusy(false);}
   },[accept,refresh]);
   useEffect(()=>{
     let disposed=false;
@@ -83,8 +104,11 @@ export function useOnlineRoom(initial:OnlineRoom) {
     void boot().catch(err=>{if(active.current)setError(err.message);});
     const heartbeat=setInterval(()=>sendHeartbeat(true),5000);
     const poll=setInterval(()=>void refresh(),2500);
-    const focus=()=>{void refresh();};window.addEventListener('focus',focus);
-    return ()=>{disposed=true;active.current=false;clearInterval(heartbeat);clearInterval(poll);window.removeEventListener('focus',focus);unsubscribe?.();if(channel)void client.removeChannel(channel);};
+    const focus=()=>{sendHeartbeat(false);void refresh();};
+    const visible=()=>{if(document.visibilityState==='visible')focus();};
+    window.addEventListener('focus',focus);
+    document.addEventListener('visibilitychange',visible);
+    return ()=>{disposed=true;active.current=false;clearInterval(heartbeat);clearInterval(poll);window.removeEventListener('focus',focus);document.removeEventListener('visibilitychange',visible);unsubscribe?.();if(channel)void client.removeChannel(channel);};
   },[initial.code,initial.id,initial.match?.phase,accept,refresh]);
   const countdownMatchId = room.match?.phase === 'countdown' ? room.match.id : null;
   const countdownStartAt = room.match?.phase === 'countdown' ? room.match.startAt : null;
