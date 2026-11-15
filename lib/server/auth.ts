@@ -28,13 +28,16 @@ export async function enforceAuthRateLimit(
     p_limit: limit,
     p_window_seconds: windowSeconds,
   });
-  if (error) return false;
+  if (error) {
+    console.error('[auth] rate limit check failed:', error.message);
+    return false;
+  }
   return Boolean(data);
 }
 
 export function ephemeralAuthClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
   if (!url || !key) return null;
   return createClient(url, key, {
     auth: {
